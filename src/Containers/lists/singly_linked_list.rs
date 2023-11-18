@@ -7,11 +7,13 @@ type SingleLink<T> = Option<Rc<RefCell<Node<T>>>>;
 pub struct SinglyLinkedList<T> {
     head: SingleLink<T>,
     tail: SingleLink<T>,
-    size: usize, // size in bytes
-    pub length: u64, // length in nodes
+    pub total_size_bytes: usize, // size in bytes
+    pub node_count: u64, // length in nodes
 }
 
 /// Represents a node in a singly linked list.
+
+#[derive(Clone)]
 struct Node<T> {
     data: T,
     next: SingleLink<T>,
@@ -21,60 +23,44 @@ struct Node<T> {
 // Implementation for SinglyLinkedList methods
 impl<T> SinglyLinkedList<T> {
 
-    pub fn new() -> Self {
+    pub fn new_empty() -> Self {
         SinglyLinkedList {
             head: None,
             tail: None,
-            size: 0,
-            length: 0,
+            total_size_bytes: 0,
+            node_count: 0,
         }
     }
 
     // raises LIFO behaviour, SLL only pops front due to O(1) time complexity
-    pub fn push_front(&mut self, data: T) {
+    pub fn push(&mut self, data: T) {
         // create a node
-        let node = Some(Rc::new(RefCell::new(Node {
-            data: data,
-            next: None,
-        })));
-        // match to se if empty or not , if empty set head and tail to node, otherwise set head to node and node.next to old head
+        let new = Node::new(data);
+
         match self.head.take() {
-            Some(old_head) => {
-                node.as_ref().unwrap().borrow_mut().next = Some(old_head.clone());
-                self.head = node; 
-            }
-            None => {
-                self.head = node.clone();
-                self.tail = node.clone();
-            }
+            Some(old) => new.borrow_mut().next = Some(old.clone()),
+            None => self.tail = Some(new.clone())
         }
-        // increment length(numeric?) and size(bytes)
-        self.length += 1;
-        self.size += std::mem::size_of::<T>();
+
+        self.head = Some(new.clone());
+        self.node_count += 1;
+        self.total_size_bytes += std::mem::size_of::<T>();
     }
 
     // raises FIFO behaviour, SLL only pushes back due to O(1) time complexity
-    pub fn push_back(&mut self, data: T) {
+    pub fn append(&mut self, data: T) {
         // create a node
-        let node = Some(Rc::new(RefCell::new(Node {
-            data: data,
-            next: None,
-        })));
+        let new = Node::new(data);
 
         match self.tail.take() {
-            Some(old_tail) => {
-                old_tail.borrow_mut().next = node.clone();
-                self.tail = node;
-            }
-            None => {
-                self.head = node.clone();
-                self.tail = node.clone();
-            }
+            Some(old) => old.borrow_mut().next = Some(new.clone()),
+            None => self.head = Some(new.clone())
         }
 
         // increment length(numeric?) and size(bytes)
-        self.length += 1;
-        self.size += std::mem::size_of::<T>();
+        self.tail = Some(new); //tail point to new "actual" tail
+        self.node_count += 1;
+        self.total_size_bytes += std::mem::size_of::<T>();
     }
 
     // Pops front , use LIFO or FIFO behaviour depending on push method used
@@ -82,6 +68,15 @@ impl<T> SinglyLinkedList<T> {
         unimplemented!()
     }
 
+}
+
+impl<T> Node<T> {
+    fn new(data: T) -> Rc<RefCell<Node<T>>> {
+        Rc::new(RefCell::new(Node{
+            data: data,
+            next: None,
+        })) 
+    }
 }
 
 
