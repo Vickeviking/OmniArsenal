@@ -1,7 +1,24 @@
 // In src/Container/mod.rs
 
-pub mod trees;    // Submodule for tree data structures
-pub mod lists;    // Submodule for list data structures
-pub mod containers_test;  // Test module for container-related tests
-pub mod trees_test;       // Test module for tree-related tests
-pub mod lists_test;       // Test module for list-related tests
+pub mod lists {
+    pub mod singly_linked_list;
+    pub mod doubly_linked_list;
+    pub mod skip_list;
+
+    pub use singly_linked_list::SinglyLinkedList;
+}
+
+pub mod trees {
+    pub mod binary_search_tree;  // Implementation of a binary search tree
+    pub mod red_black_tree;       // Implementation of a red-black tree
+    pub mod heap;                 // Implementation of a heap
+    pub mod trie;                 // Implementation of a trie
+    pub mod b_tree;               // Implementation of a B-tree
+
+}
+
+pub use lists::*;
+pub use trees::*;
+
+// Implementation of a singly linked list
+
