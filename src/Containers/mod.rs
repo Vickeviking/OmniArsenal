@@ -14,11 +14,18 @@ pub mod trees {
     pub mod heap;                 // Implementation of a heap
     pub mod trie;                 // Implementation of a trie
     pub mod b_tree;               // Implementation of a B-tree
-
 }
+
+// tests for containers
+pub mod lists_test;
+pub mod trees_test;
+pub use lists_test::*;
+pub use trees_test::*;
+
 
 pub use lists::*;
 pub use trees::*;
+
 
 // Implementation of a singly linked list
 

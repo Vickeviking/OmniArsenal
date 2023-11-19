@@ -1,6 +1,42 @@
 // In src/Container/lists_test.rs
+// containers/lists_test.rs
 
 #[cfg(test)]
-mod tests {
-    // Your list-related tests go here
+pub mod list_tests {
+    use super::super::SinglyLinkedList;
+
+    // SinglyLinkedList tests
+    #[test]
+    pub fn test_singly_linked_list() {
+        push_test();
+        append_test();
+    }
+
+
+
+
+    // TESTS AREA FOR SINGLY LINKED LIST //
+    #[test]
+    fn push_test() {
+        // Your push test implementation goes here
+        let mut list = SinglyLinkedList::new_empty();
+        list.push(42);
+
+        // Add assertions to test the behavior
+        assert_eq!(list.node_count, 1);
+        assert_eq!(list.total_size_bytes, std::mem::size_of::<i32>());
+    }
+
+    #[test]
+    fn append_test() {
+        // Your append test implementation goes here
+        let mut list = SinglyLinkedList::new_empty();
+        list.append(42);
+
+        // Add assertions to test the behavior
+        assert_eq!(list.node_count, 1);
+        assert_eq!(list.total_size_bytes, std::mem::size_of::<i32>());
+    }
+
+
 }
