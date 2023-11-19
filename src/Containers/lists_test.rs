@@ -10,6 +10,7 @@ pub mod list_tests {
     pub fn test_singly_linked_list() {
         push_test();
         append_test();
+        pop_test();
     }
 
 
@@ -38,5 +39,19 @@ pub mod list_tests {
         assert_eq!(list.total_size_bytes, std::mem::size_of::<i32>());
     }
 
+    #[test]
+
+    fn pop_test() {
+        let mut list = SinglyLinkedList::new_empty();
+        list.push(42);
+        list.push(43);
+        list.push(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(list.pop(), Some(44));
+        assert_eq!(list.pop(), Some(43));
+        assert_eq!(list.pop(), Some(42));
+        assert_eq!(list.pop(), None);
+    }
 
 }

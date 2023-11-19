@@ -65,7 +65,20 @@ impl<T> SinglyLinkedList<T> {
 
     // Pops front , use LIFO or FIFO behaviour depending on push method used
     pub fn pop(&mut self) -> Option<T> {
-        unimplemented!()
+        self.head.take().map(|head| {
+            if let Some(next) = head.borrow_mut().next.take() {
+                self.head = Some(next);
+            } else {
+                self.tail.take();
+            }
+            self.node_count -= 1;
+            self.total_size_bytes -= std::mem::size_of::<T>();
+            Rc::try_unwrap(head)
+                .ok()
+                .expect("Something went wrong")
+                .into_inner()
+                .data
+        })
     }
 
 }
