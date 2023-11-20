@@ -1,11 +1,13 @@
 // In src/Container/mod.rs
 
 pub mod lists {
+    pub mod array_list;
     pub mod singly_linked_list;
     pub mod doubly_linked_list;
     pub mod skip_list;
 
     pub use singly_linked_list::SinglyLinkedList;
+    pub use array_list::ArrayList;
 }
 
 pub mod trees {

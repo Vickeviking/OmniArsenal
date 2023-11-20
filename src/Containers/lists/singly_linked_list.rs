@@ -119,7 +119,6 @@ impl<T: Clone> SinglyLinkedListIterator<T> {
     fn new(start_at: SingleLink<T>) -> Self {
         SinglyLinkedListIterator { current: start_at }
     }
-
 }
 
 impl<T: Clone> Node<T> {

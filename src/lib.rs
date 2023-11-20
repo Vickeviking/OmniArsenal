@@ -10,6 +10,7 @@ mod tests {
     use crate::containers::lists_test;
     #[test]
     pub fn test_all_lists() {
+        lists_test::list_tests::test_array_list();
         lists_test::list_tests::test_singly_linked_list();
     }
 

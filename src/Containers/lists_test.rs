@@ -3,9 +3,19 @@
 
 #[cfg(test)]
 pub mod list_tests {
+    use std::ops::Range;
+
     use super::super::SinglyLinkedList;
+    use super::super::ArrayList;
 
     // SinglyLinkedList tests
+
+    #[test]
+    pub fn test_array_list() {
+        array_list_append_test();
+        array_growth_test();
+    }
+
     #[test]
     pub fn test_singly_linked_list() {
         push_test();
@@ -20,9 +30,49 @@ pub mod list_tests {
         big_list_test();
     }
 
+    // TEST AREA FOR ARRAY LIST STARTS //
+
+    #[test]
+    fn array_list_append_test() {
+        let mut arr = ArrayList::<i32>::new();
+        assert_eq!(arr.length, 0);
+        arr.append(42);
+        assert_eq!(arr.length, 1);
+    }
+
+    #[test]
+    fn array_growth_test() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // should force a grow to 10
+        arr.append(1);
+        arr.append(2);
+        arr.append(3);
+        arr.append(4);
+        arr.append(5);
+
+        // should force a grow to 20
+        arr.append(-1);
+        arr.append(-2);
+        arr.append(-3);
+        arr.append(-4);
+        arr.append(-5);
+        arr.append( -6);
+
+        //should force a grow to 40
+        for i in 0..10 {
+            arr.append(i);
+        }
 
 
-    // TESTS AREA FOR SINGLY LINKED LIST //
+
+
+    }
+
+    // TEST AREA FOR ARRAY LIST ENDS //
+
+
+    // TESTS AREA FOR SINGLY LINKED LIST STARTS //
     #[test]
     fn push_test() {
         // Your push test implementation goes here
@@ -190,5 +240,7 @@ pub mod list_tests {
         assert!(list.is_empty() == true);
 
     }
+
+    // TEST AREA FOR SINGLY LINKED LIST ENDS //
 
 }
