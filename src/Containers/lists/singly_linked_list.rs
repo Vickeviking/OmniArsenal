@@ -1,27 +1,37 @@
+/*
+* Singly Linked List
+* push, append, pop, peek, is_empy & clear are O(1) time complexity
+* FIFO or LIFO behaviour depending on push method used
+* available Iterators: into_iter, iter. No rev_iter while singly linked
+*/
+
 use std::rc::Rc;
 use std::cell::RefCell;
 
 type SingleLink<T> = Option<Rc<RefCell<Node<T>>>>;
 
 /// Represents a singly linked list data structure.
-pub struct SinglyLinkedList<T> {
+pub struct SinglyLinkedList<T: Clone> {
     head: SingleLink<T>,
     tail: SingleLink<T>,
     pub total_size_bytes: usize, // size in bytes
     pub node_count: u64, // length in nodes
 }
 
-/// Represents a node in a singly linked list.
+pub struct SinglyLinkedListIterator<T: Clone> {
+    current: SingleLink<T>,
+}
 
+/// Represents a node in a singly linked list.
 #[derive(Clone)]
-struct Node<T> {
+struct Node<T: Clone> {
     data: T,
     next: SingleLink<T>,
 }
 
 
 // Implementation for SinglyLinkedList methods
-impl<T> SinglyLinkedList<T> {
+impl<T: Clone> SinglyLinkedList<T> {
 
     pub fn new_empty() -> Self {
         SinglyLinkedList {
@@ -42,6 +52,7 @@ impl<T> SinglyLinkedList<T> {
             None => self.tail = Some(new.clone())
         }
 
+        // increment length(u64) and size(bytes)
         self.head = Some(new.clone());
         self.node_count += 1;
         self.total_size_bytes += std::mem::size_of::<T>();
@@ -57,7 +68,7 @@ impl<T> SinglyLinkedList<T> {
             None => self.head = Some(new.clone())
         }
 
-        // increment length(numeric?) and size(bytes)
+        // increment length(u64) and size(bytes)
         self.tail = Some(new); //tail point to new "actual" tail
         self.node_count += 1;
         self.total_size_bytes += std::mem::size_of::<T>();
@@ -81,9 +92,37 @@ impl<T> SinglyLinkedList<T> {
         })
     }
 
+    pub fn peek(&self) -> Option<T> { //if some, return cloned data, else return none
+        self.head.as_ref().map(|head| {
+            head.borrow().data.clone()
+        })
+    }
+
+    pub fn peek_tail(&self) -> Option<T> { //if some, return cloned data, else return none
+        self.tail.as_ref().map(|tail| {
+            tail.borrow().data.clone()
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.head.is_none()
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::new_empty();
+    }
+
+
 }
 
-impl<T> Node<T> {
+impl<T: Clone> SinglyLinkedListIterator<T> {
+    fn new(start_at: SingleLink<T>) -> Self {
+        SinglyLinkedListIterator { current: start_at }
+    }
+
+}
+
+impl<T: Clone> Node<T> {
     fn new(data: T) -> Rc<RefCell<Node<T>>> {
         Rc::new(RefCell::new(Node{
             data: data,
@@ -92,32 +131,49 @@ impl<T> Node<T> {
     }
 }
 
+// Trait implementations
 
-
-/*TODO: 
-    Functions for Singly Linked List:
-    peek: Get a reference to the first element without removing it.
-    peek_mut: Get a mutable reference to the first element without removing it.
-    into_iter: Consume the list, returning an iterator.
-    iter: Create an iterator over the elements without consuming the list.
-    iter_mut: Create a mutable iterator over the elements without consuming the list.
-    rev: Return an iterator over the elements in reverse order.
-    rev_mut: Return a mutable iterator over the elements in reverse order.
-    len: Get the number of elements in the list.
-    is_empty: Check if the list is empty.
-    clear: Remove all elements from the list.
-
-    Iterator for Singly Linked List:
-    Implement the Iterator trait for your linked list.
-
-    Traits: Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash:
-    Implement each of these traits for both SinglyLinkedList and Node. Make sure to consider the specific requirements of each trait.
+//Iterator, we need to define the associated type Item and the next() method
+impl<T: Clone> Iterator for SinglyLinkedListIterator<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<T> {
+        let current = &self.current;
+        let mut result = None;
+        self.current = match current {
+            Some(ref current) => {
+                let current = current.borrow();
+                result = Some(current.data.clone());
+                current.next.clone()
+            },
+            None => None,
+        };
+        result
+    }
     
-    IntoIterator, Iterator, and Reverse Iterator:
-    Implement the IntoIterator trait for your linked list, allowing it to be consumed in a for loop.
-    Implement the Iterator trait for your linked list, defining how iteration works.
-    Implement a reverse iterator for your linked list, allowing you to iterate in reverse order.
+}
 
-    Tests:
-    Write comprehensive tests for each function and trait implementation. Ensure that your linked list behaves as expected in different scenarios.
-*/
+//IntoIterator, we need to define the associated type Item and the into_iter() method
+impl<T: Clone> IntoIterator for SinglyLinkedList<T> {
+    type Item = T;
+    type IntoIter = SinglyLinkedListIterator<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SinglyLinkedListIterator {
+            current: self.head,
+        }
+    }
+}
+
+//formatting trait
+use std::fmt;
+impl<T: Clone + fmt::Debug> fmt::Debug for SinglyLinkedList<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SinglyLinkedList")
+            .field("total_size_bytes", &self.total_size_bytes)
+            .field("node_count", &self.node_count)
+            .finish()
+    }
+}
+
+
+//TODO: Implement intoIter, iter, debug trait
