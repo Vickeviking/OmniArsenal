@@ -14,6 +14,8 @@ pub mod list_tests {
     pub fn test_array_list() {
         array_list_append_test();
         array_growth_test();
+        array_with_capacity_test();
+        array_pop_test();
     }
 
     #[test]
@@ -35,6 +37,14 @@ pub mod list_tests {
     #[test]
     fn array_list_append_test() {
         let mut arr = ArrayList::<i32>::new();
+        assert_eq!(arr.length, 0);
+        arr.append(42);
+        assert_eq!(arr.length, 1);
+    }
+
+    #[test]
+    fn array_with_capacity_test() {
+        let mut arr = ArrayList::<i32>::with_capacity(10);
         assert_eq!(arr.length, 0);
         arr.append(42);
         assert_eq!(arr.length, 1);
@@ -63,12 +73,24 @@ pub mod list_tests {
         for i in 0..10 {
             arr.append(i);
         }
-
-
-
-
     }
 
+    #[test]
+    fn array_pop_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.pop(), Some(44));
+        assert!(arr.length == 2);
+        assert_eq!(arr.pop(), Some(43));
+        assert_eq!(arr.pop(), Some(42));
+        assert!(arr.length == 0);
+        assert_eq!(arr.pop(), None);
+
+    }
     // TEST AREA FOR ARRAY LIST ENDS //
 
 

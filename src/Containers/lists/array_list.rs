@@ -11,9 +11,8 @@ use std::mem;
 use core::alloc::Layout;
 use std::alloc::alloc;
 use std::ptr;
+use std::fmt;
 //fake array
-
-#[derive(Debug)]
 pub struct ArrayList<T> {
     pub length: usize,
     inner: Box<[T]>,
@@ -65,21 +64,36 @@ impl<T: Default + Debug> ArrayList<T> {
     }
 
     pub fn append(&mut self, item: T) {
-        println!("appending {item:?} to {self:?}");
+        //println!("appending {item:?} to {self:?}");
         self.length = self.length + 1;
         if self.inner.len() <= self.length {
             self.grow_inner();
         } 
-        let i = self.tail + 1;
-        self.inner[i] = item;
-        self.tail = i;
+        self.inner[self.tail] = item;
+        self.tail = self.tail + 1;
     }
 
-    pub fn remove(&mut self) -> T {
-        let item = mem::replace(&mut self.inner[self.tail], T::default());
-        println!("removing item {:?}", item);
-        self.tail = self.tail - 1;
-        item
+    pub fn pop(&mut self) -> Option<T> {
+        if self.tail > 0 {
+            let item = mem::replace(&mut self.inner[self.tail - 1], T::default());
+            //println!("removing item {:?}", item);
+            self.tail -= 1;
+            self.length -= 1;
+            Some(item)
+        } else {
+            None
+        }
     }
 
+}
+
+
+impl<T: fmt::Debug> fmt::Debug for ArrayList<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ArrayList")
+            .field("length", &self.length)
+            .field("tail", &self.tail)
+            .field("inner", &&self.inner[..])
+            .finish()
+    }
 }
