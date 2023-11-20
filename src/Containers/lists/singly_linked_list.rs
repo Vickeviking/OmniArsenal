@@ -1,6 +1,6 @@
 /*
 * Singly Linked List
-* push, append, pop, peek, is_empy & clear are O(1) time complexity
+* prepend, append, pop, peek, is_empy & clear are O(1) time complexity
 * FIFO or LIFO behaviour depending on push method used
 * available Iterators: into_iter, iter. No rev_iter while singly linked
 */
@@ -43,7 +43,7 @@ impl<T: Clone> SinglyLinkedList<T> {
     }
 
     // raises LIFO behaviour, SLL only pops front due to O(1) time complexity
-    pub fn push(&mut self, data: T) {
+    pub fn prepend(&mut self, data: T) {
         // create a node
         let new = Node::new(data);
 

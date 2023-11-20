@@ -3,8 +3,6 @@
 
 #[cfg(test)]
 pub mod list_tests {
-    use std::ops::Range;
-
     use super::super::SinglyLinkedList;
     use super::super::ArrayList;
 
@@ -18,11 +16,12 @@ pub mod list_tests {
         array_list_pop_test();
         array_list_get_test();
         array_list_get_mut_test();
+        test_len_is_empty_and_clear();
     }
 
     #[test]
     pub fn test_singly_linked_list() {
-        push_test();
+        prepend_test();
         append_test();
         pop_test();
         peek_test();
@@ -128,6 +127,30 @@ pub mod list_tests {
 
     }
 
+    #[test]
+    fn test_len_is_empty_and_clear() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // At this point, the array list should be empty
+        assert_eq!(arr.len(), 0);
+        assert!(arr.is_empty());
+
+        // Add some elements to the array list
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Now the array list should have 3 elements
+        assert_eq!(arr.len(), 3);
+        assert!(!arr.is_empty());
+
+        // Clear the array list
+        arr.clear();
+
+        // The array list should be empty again
+        assert_eq!(arr.len(), 0);
+        assert!(arr.is_empty());
+    }
 
     // TEST AREA FOR ARRAY LIST ENDS //
 
@@ -138,10 +161,10 @@ pub mod list_tests {
 
     // TESTS AREA FOR SINGLY LINKED LIST STARTS //
     #[test]
-    fn push_test() {
+    fn prepend_test() {
         // Your push test implementation goes here
         let mut list = SinglyLinkedList::new_empty();
-        list.push(42);
+        list.prepend(42);
 
         // Add assertions to test the behavior
         assert_eq!(list.node_count, 1);
@@ -163,9 +186,9 @@ pub mod list_tests {
 
     fn pop_test() {
         let mut list = SinglyLinkedList::new_empty();
-        list.push(42);
-        list.push(43);
-        list.push(44);
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
 
         // Add assertions to test the behavior
         assert_eq!(list.pop(), Some(44));
@@ -176,7 +199,7 @@ pub mod list_tests {
     #[test]
     fn peek_test() {
         let mut list = SinglyLinkedList::new_empty();
-        list.push(42);
+        list.prepend(42);
 
         // Add assertions to test the behavior
         assert_eq!(list.peek(), Some(42));
@@ -185,9 +208,9 @@ pub mod list_tests {
     #[test]
     fn peek_tail_test() {
         let mut list = SinglyLinkedList::new_empty();
-        list.push(42);
-        list.push(43);
-        list.push(44);
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
 
         // Add assertions to test the behavior
         assert_eq!(list.peek_tail(), Some(42));
@@ -197,9 +220,9 @@ pub mod list_tests {
 
     fn is_empty_test() {
         let mut list: SinglyLinkedList<i32> = SinglyLinkedList::new_empty();
-        list.push(42);
-        list.push(43);
-        list.push(44);
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
 
         // Add assertions to test the behavior
         assert_eq!(list.is_empty(), false);
@@ -211,8 +234,8 @@ pub mod list_tests {
     #[test]
     fn clear_test() {
         let mut list = SinglyLinkedList::new_empty();
-        list.push(42);
-        list.push(43);
+        list.prepend(42);
+        list.prepend(43);
 
         // Add assertions to test the behavior
         assert_eq!(list.is_empty(), false);
@@ -223,9 +246,9 @@ pub mod list_tests {
     #[test]
     fn iterator_test() {
         let mut list = SinglyLinkedList::new_empty();
-        list.push(42);
-        list.push(43);
-        list.push(44);
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
 
         let mut iter = list.into_iter();
         assert_eq!(iter.next(), Some(44));
@@ -234,9 +257,9 @@ pub mod list_tests {
         assert_eq!(iter.next(), None);
 
         let mut list2 = SinglyLinkedList::new_empty();
-        list2.push(42);
-        list2.push(43);
-        list2.push(44);
+        list2.prepend(42);
+        list2.prepend(43);
+        list2.prepend(44);
 
         for (i, val) in list2.into_iter().enumerate() {
             assert_eq!(val, 44 - i as i32);
@@ -246,9 +269,9 @@ pub mod list_tests {
     #[test]
     fn formatting_test() {
         let mut list = SinglyLinkedList::new_empty();
-        list.push(42);
-        list.push(43);
-        list.push(44);
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
         assert_eq!(format!("{:?}", list), "SinglyLinkedList { total_size_bytes: 12, node_count: 3 }");
     }
 
@@ -256,7 +279,7 @@ pub mod list_tests {
     fn big_list_test() {
         let mut list = SinglyLinkedList::new_empty();
         for i in 0..1000 {
-            list.push(i);
+            list.prepend(i);
         }
         assert_eq!(list.node_count, 1000);
         assert_eq!(list.total_size_bytes, 1000 * std::mem::size_of::<i32>());
@@ -278,9 +301,9 @@ pub mod list_tests {
 
         assert_eq!(list.node_count, 0);
 
-        list.push(42);
-        list.push(43);
-        list.push(44);
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
         assert!(list.is_empty() == false);
         assert!(list.peek() == Some(44));
         assert!(list.peek_tail() == Some(42));
@@ -296,9 +319,9 @@ pub mod list_tests {
         assert!(list.is_empty() == true);
         assert!(list.pop() == None);
 
-        list.push(42);
-        list.push(43);
-        list.push(44);
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
         assert!(list.is_empty() == false);
         list.clear();
         assert!(list.is_empty() == true);

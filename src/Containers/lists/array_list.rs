@@ -1,7 +1,7 @@
 /*
 * ArrayList
 * Wrapper that uses arrays under the hood
-* push/pop/access has O(1)
+* push/pop/get has O(1)
 * enqueue/dequeue has O(n)
 * constructor specifis initial size
 */
@@ -97,6 +97,22 @@ impl<T: Default + Debug> ArrayList<T> {
             true => Some(&mut self.inner[index]),
             false => None,
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
+    pub fn clear(&mut self) {
+        for i in 0..self.length {
+            self.inner[i] = T::default();
+        }
+        self.length = 0;
+        self.tail = 0;
     }
 
 
