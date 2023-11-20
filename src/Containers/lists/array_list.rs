@@ -85,6 +85,21 @@ impl<T: Default + Debug> ArrayList<T> {
         }
     }
 
+    pub fn get(&self, index: usize) -> Option<&T> {
+        match index < self.length {
+            true => Some(&self.inner[index]),
+            false => None,
+        }
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        match index < self.length {
+            true => Some(&mut self.inner[index]),
+            false => None,
+        }
+    }
+
+
 }
 
 

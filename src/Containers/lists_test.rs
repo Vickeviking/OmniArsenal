@@ -13,9 +13,11 @@ pub mod list_tests {
     #[test]
     pub fn test_array_list() {
         array_list_append_test();
-        array_growth_test();
-        array_with_capacity_test();
-        array_pop_test();
+        array_list_growth_test();
+        array_list_with_capacity_test();
+        array_list_pop_test();
+        array_list_get_test();
+        array_list_get_mut_test();
     }
 
     #[test]
@@ -43,7 +45,7 @@ pub mod list_tests {
     }
 
     #[test]
-    fn array_with_capacity_test() {
+    fn array_list_with_capacity_test() {
         let mut arr = ArrayList::<i32>::with_capacity(10);
         assert_eq!(arr.length, 0);
         arr.append(42);
@@ -51,7 +53,7 @@ pub mod list_tests {
     }
 
     #[test]
-    fn array_growth_test() {
+    fn array_list_growth_test() {
         let mut arr = ArrayList::<i32>::new();
 
         // should force a grow to 10
@@ -76,7 +78,7 @@ pub mod list_tests {
     }
 
     #[test]
-    fn array_pop_test() {
+    fn array_list_pop_test() {
         let mut arr = ArrayList::<i32>::new();
         arr.append(42);
         arr.append(43);
@@ -91,7 +93,47 @@ pub mod list_tests {
         assert_eq!(arr.pop(), None);
 
     }
+
+    #[test]
+    fn array_list_get_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.get(0), Some(&42));
+        assert_eq!(arr.get(1), Some(&43));
+        assert_eq!(arr.get(2), Some(&44));
+        assert_eq!(arr.get(3), None);
+    }
+
+    #[test]
+    fn array_list_get_mut_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.get_mut(0), Some(&mut 42));
+        assert_eq!(arr.get_mut(1), Some(&mut 43));
+        assert_eq!(arr.get_mut(2), Some(&mut 44));
+        assert_eq!(arr.get_mut(3), None);
+
+        // try and change the values
+        *arr.get_mut(0).unwrap() = 1;
+        *arr.get_mut(1).unwrap() = 2;
+        *arr.get_mut(2).unwrap() = 3;
+
+    }
+
+
     // TEST AREA FOR ARRAY LIST ENDS //
+
+
+
+
 
 
     // TESTS AREA FOR SINGLY LINKED LIST STARTS //
