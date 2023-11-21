@@ -11,6 +11,7 @@ pub mod list_tests {
     #[test]
     pub fn test_array_list() {
         array_list_append_test();
+        array_list_prepend_test();
         array_list_growth_test();
         array_list_with_capacity_test();
         array_list_pop_test();
@@ -43,6 +44,35 @@ pub mod list_tests {
         assert_eq!(arr.length, 1);
     }
 
+    #[test]
+    fn array_list_prepend_test() {
+        let mut arr = ArrayList::<i32>::new();
+        assert_eq!(arr.length, 0);
+
+        // Prepend an element
+        arr.prepend(42);
+        assert_eq!(arr.length, 1);
+        assert_eq!(arr.get(0), Some(&42));
+        // Prepend another element
+        arr.prepend(41);
+        assert_eq!(arr.length, 2);
+        assert_eq!(arr.get(0), Some(&41));
+        assert_eq!(arr.get(1), Some(&42));
+        // Prepend another element
+        arr.prepend(40);
+        assert_eq!(arr.length, 3);
+        assert_eq!(arr.get(0), Some(&40));
+        assert_eq!(arr.get(1), Some(&41));
+        assert_eq!(arr.get(2), Some(&42));
+        // Prepend another element
+        arr.prepend(39);
+        assert_eq!(arr.length, 4);
+        assert_eq!(arr.get(0), Some(&39));
+        assert_eq!(arr.get(1), Some(&40));
+        assert_eq!(arr.get(2), Some(&41));
+        assert_eq!(arr.get(3), Some(&42));
+
+    }
     #[test]
     fn array_list_with_capacity_test() {
         let mut arr = ArrayList::<i32>::with_capacity(10);

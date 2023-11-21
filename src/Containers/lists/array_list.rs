@@ -1,8 +1,8 @@
 /*
 * ArrayList
 * Wrapper that uses arrays under the hood
-* push/pop/get has O(1)
-* enqueue/dequeue has O(n)
+* append/pop/get has O(1)
+* prepend has O(n)
 * constructor specifis initial size
 */
 
@@ -73,6 +73,27 @@ impl<T: Default + Debug> ArrayList<T> {
         self.tail = self.tail + 1;
     }
 
+    pub fn prepend(&mut self, item: T) {
+        //println!("prepending {item:?} to {self:?}");
+        // If the array is empty, append the item instead, avoids shifting 
+        if self.length == 0 {
+            self.append(item);
+            return;
+        }
+
+        self.length = self.length + 1;
+
+        if self.inner.len() <= self.length {
+            self.grow_inner();
+        } 
+        //shift all items to the right 0
+        self.shift_right(0);
+        // front now empty, insert item
+        self.inner[0] = item;
+        // move tail back one
+        self.tail = self.tail + 1;
+    }
+
     pub fn pop(&mut self) -> Option<T> {
         if self.tail > 0 {
             let item = mem::replace(&mut self.inner[self.tail - 1], T::default());
@@ -99,6 +120,23 @@ impl<T: Default + Debug> ArrayList<T> {
         }
     }
 
+    fn shift_right(&mut self, offset: usize) {
+        // Ensure there is enough space in the inner array
+        while self.inner.len() <= self.tail + offset {
+            self.grow_inner();
+        }
+    
+        // If the array is empty, there's nothing to shift
+        if self.length == 0 {
+            return;
+        }
+    
+        // Shift elements to the right
+        for i in (offset..self.length).rev() {
+            self.inner[i + 1] = mem::replace(&mut self.inner[i], T::default());
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.length
     }
@@ -114,6 +152,7 @@ impl<T: Default + Debug> ArrayList<T> {
         self.length = 0;
         self.tail = 0;
     }
+
 
 
 }
