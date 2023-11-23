@@ -18,6 +18,9 @@ pub mod list_tests {
         array_list_get_test();
         array_list_get_mut_test();
         test_len_is_empty_and_clear();
+        array_list_pop_at_test();
+        array_list_set_test();
+        test_insert_at();
     }
 
     #[test]
@@ -35,6 +38,22 @@ pub mod list_tests {
     }
 
     // TEST AREA FOR ARRAY LIST STARTS //
+
+    #[test]
+    fn array_list_set_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.set(0, 43), Some(42));
+        assert_eq!(arr.get(0), Some(&43));
+        assert_eq!(arr.set(2, 30), Some(44));
+        assert_eq!(arr.get(2), Some(&30));
+        assert_eq!(arr.set(3, 30), None);
+
+    }
 
     #[test]
     fn array_list_append_test() {
@@ -73,6 +92,42 @@ pub mod list_tests {
         assert_eq!(arr.get(3), Some(&42));
 
     }
+
+    #[test]
+    fn test_insert_at() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // Append 10 items
+        for i in 1..11 {
+            arr.append(i);
+        }
+
+        // Insert at index 0
+        arr.insert_at(0, 0);
+        assert_eq!(arr.len(), 11);
+        assert_eq!(arr.get(0), Some(&0)); // First item should now be 0
+        assert_eq!(arr.get(1), Some(&1)); // Second item should now be 1
+
+        // Insert at index 5
+        arr.insert_at(5, 50);
+        assert_eq!(arr.len(), 12);
+        assert_eq!(arr.get(5), Some(&50)); // The item at index 5 should be 50
+        assert_eq!(arr.get(6), Some(&5)); // The item at index 6 should be 6 (the original item at index 5)
+
+        // Insert at last index
+
+        print!("arr: {:?}", arr);
+        arr.insert_at(11, 100);
+        print!("arr: {:?}", arr);
+        assert_eq!(arr.len(), 13);
+        assert_eq!(arr.get(11), Some(&100)); // The item at index 11 should be 100
+        assert_eq!(arr.get(12), Some(&10)); // The item at index 12 should be 10
+
+        // Try to insert at an out-of-bounds index
+        arr.insert_at(100, 200);
+        assert_eq!(arr.len(), 13); // Length should not have changed
+    }
+
     #[test]
     fn array_list_with_capacity_test() {
         let mut arr = ArrayList::<i32>::with_capacity(10);

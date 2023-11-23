@@ -6,7 +6,7 @@
 * constructor specifis initial size
 */
 
-//todo add iterator traits, insert at & set
+//todo add iterator traits, insert at
 
 use std::fmt::Debug;
 use std::mem;
@@ -65,7 +65,7 @@ impl<T: Default + Debug> ArrayList<T> {
         self.inner = new_inner;
     }
 
-    pub fn append(&mut self, item: T) {
+    pub fn append(&mut self, item: T) -> () {
         //println!("appending {item:?} to {self:?}");
         self.length = self.length + 1;
         if self.inner.len() <= self.length {
@@ -75,7 +75,7 @@ impl<T: Default + Debug> ArrayList<T> {
         self.tail = self.tail + 1;
     }
 
-    pub fn prepend(&mut self, item: T) {
+    pub fn prepend(&mut self, item: T) -> () {
         //println!("prepending {item:?} to {self:?}");
         // If the array is empty, append the item instead, avoids shifting 
         if self.length == 0 {
@@ -96,6 +96,29 @@ impl<T: Default + Debug> ArrayList<T> {
         self.tail = self.tail + 1;
     }
 
+    pub fn set(&mut self, index: usize, el: T) -> Option<T> {
+        // replace mem at index with el and return replaced mem
+        if index >= self.length {
+            return None; //can't set an out of bounds index
+        }
+        let item: T = mem::replace(&mut self.inner[index], el);
+        Some(item)
+    }
+
+    pub fn insert_at( &mut self, index: usize, el: T) -> () {
+        // insert el at index and return replaced mem
+        if index >= self.length {
+            return (); //can't insert at out of bounds index
+        };
+        // shift all items to the right
+        self.shift_slice_right(index);
+        // insert el at just freed index
+        self.inner[index] = el;
+        // move tail back one and increment length
+        self.tail = self.tail + 1;
+        self.length = self.length + 1;
+    }
+
     pub fn pop(&mut self) -> Option<T> {
         if self.tail > 0 {
             let item = mem::replace(&mut self.inner[self.tail - 1], T::default());
@@ -112,6 +135,8 @@ impl<T: Default + Debug> ArrayList<T> {
         if index < self.length {
             let item = mem::replace(&mut self.inner[index], T::default());
             self.shift_all_left(index, 1);
+            self.tail = self.tail - 1;
+            self.length = self.length - 1;
             Some(item)
         } else {
             None //can't pop an out of bounds index
@@ -147,9 +172,18 @@ impl<T: Default + Debug> ArrayList<T> {
         for i in start_index..self.length {
             self.inner[i] = mem::replace(&mut self.inner[i + 1], T::default());
         }
+    }
 
-        self.tail = self.tail - 1;
-        self.length = self.length - 1;
+    fn shift_slice_right(&mut self, start_index: usize) {
+        if self.length == self.inner.len() {
+            self.grow_inner();
+        }
+        if self.length == 0 {
+            return;
+        }
+        for i in (start_index..=self.length).rev() {
+            self.inner[i + 1] = std::mem::replace(&mut self.inner[i], T::default());
+        }
     }
 
     fn shift_all_right(&mut self, offset: usize) {
