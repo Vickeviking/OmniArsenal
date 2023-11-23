@@ -21,6 +21,7 @@ pub mod list_tests {
         array_list_pop_at_test();
         array_list_set_test();
         test_insert_at();
+        test_array_list_iteration();
     }
 
     #[test]
@@ -265,6 +266,41 @@ pub mod list_tests {
         // Pop at last index
         assert_eq!(arr.pop_at(97), Some(100)); // The last item should be 100
         assert_eq!(arr.len(), 97);
+    }
+
+
+    #[test]
+    fn test_array_list_iteration() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // Append 10 items
+        for i in 1..11 {
+            arr.append(i);
+        }
+
+        // Iterate over the array list and check the items
+        let mut index = 1;
+        for item in &arr {
+            assert_eq!(*item, index);
+            index += 1;
+        }
+
+        // Check that the iteration covered all items
+        assert_eq!(index, 11);
+
+        // Insert an item at index 5
+        arr.insert_at(5, 50);
+
+        // Iterate over the array list again and check the items
+        let expected_items = vec![1, 2, 3, 4, 5, 50, 6, 7, 8, 9, 10];
+        let mut index = 0;
+        for item in &arr {
+            assert_eq!(*item, expected_items[index]);
+            index += 1;
+        }
+
+        // Check that the iteration covered all items
+        assert_eq!(index, expected_items.len());
     }
     // TEST AREA FOR ARRAY LIST ENDS //
 

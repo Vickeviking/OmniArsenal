@@ -3,10 +3,10 @@
 * Wrapper that uses arrays under the hood
 * append/pop/get has O(1)
 * prepend has O(n)
-* constructor specifis initial size
+* constructor specifies initial size
 */
 
-//todo add iterator traits, insert at
+//todo add iterator traits
 
 use std::fmt::Debug;
 use std::mem;
@@ -19,6 +19,11 @@ pub struct ArrayList<T> {
     pub length: usize,
     inner: Box<[T]>,
     tail: usize,
+}
+
+pub struct ArrayListIterator<'a, T> {
+    current: usize,
+    list: &'a ArrayList<T>,
 }
 
 impl<T: Default + Debug> ArrayList<T> {
@@ -223,6 +228,30 @@ impl<T: Default + Debug> ArrayList<T> {
 
 }
 
+impl<'a, T: Default + Debug> Iterator for ArrayListIterator<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.list.length {
+            let item = &self.list.inner[self.current];
+            self.current += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T: Default + Debug> IntoIterator for &'a ArrayList<T> {
+    type Item = &'a T;
+    type IntoIter = ArrayListIterator<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ArrayListIterator {
+            current: 0,
+            list: self,
+        }
+    }
+}
 
 impl<T: fmt::Debug> fmt::Debug for ArrayList<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
