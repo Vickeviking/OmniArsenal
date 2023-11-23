@@ -182,6 +182,35 @@ pub mod list_tests {
         assert!(arr.is_empty());
     }
 
+    #[test]
+    fn array_list_pop_at_test() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // Append 100 items
+        for i in 1..101 {
+            arr.append(i);
+            assert_eq!(arr.len(), i as usize); // Assert length after each append
+        }
+
+        // Check the first item
+        assert_eq!(arr.get(0), Some(&1));
+
+        // Check the last item
+        assert_eq!(arr.get(99), Some(&100));
+
+        // Pop at index 0
+        assert_eq!(arr.pop_at(0), Some(1));
+        assert_eq!(arr.len(), 99);
+        assert_eq!(arr.get(0), Some(&2)); // First item should now be 2
+
+        // Pop at index 50
+        assert_eq!(arr.pop_at(50), Some(52)); // The item at index 50 should be 52 (since we already removed the first item)
+        assert_eq!(arr.len(), 98);
+
+        // Pop at last index
+        assert_eq!(arr.pop_at(97), Some(100)); // The last item should be 100
+        assert_eq!(arr.len(), 97);
+    }
     // TEST AREA FOR ARRAY LIST ENDS //
 
 

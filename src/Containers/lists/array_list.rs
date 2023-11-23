@@ -6,6 +6,8 @@
 * constructor specifis initial size
 */
 
+//todo add iterator traits, insert at & set
+
 use std::fmt::Debug;
 use std::mem;
 use core::alloc::Layout;
@@ -87,7 +89,7 @@ impl<T: Default + Debug> ArrayList<T> {
             self.grow_inner();
         } 
         //shift all items to the right 0
-        self.shift_right(0);
+        self.shift_all_right(0);
         // front now empty, insert item
         self.inner[0] = item;
         // move tail back one
@@ -106,6 +108,16 @@ impl<T: Default + Debug> ArrayList<T> {
         }
     }
 
+    pub fn pop_at(&mut self, index: usize) -> Option<T> {
+        if index < self.length {
+            let item = mem::replace(&mut self.inner[index], T::default());
+            self.shift_all_left(index, 1);
+            Some(item)
+        } else {
+            None //can't pop an out of bounds index
+        }
+    }
+
     pub fn get(&self, index: usize) -> Option<&T> {
         match index < self.length {
             true => Some(&self.inner[index]),
@@ -120,7 +132,27 @@ impl<T: Default + Debug> ArrayList<T> {
         }
     }
 
-    fn shift_right(&mut self, offset: usize) {
+    fn shift_all_left(&mut self, start_index: usize, offset: usize) {
+        // Ensure there is enough space in the inner array
+        while self.inner.len() <= self.tail + 1 {
+            self.grow_inner();
+        }
+    
+        // If the array is empty, there's nothing to shift
+        if self.length == 0 {
+            return;
+        }
+    
+        // Shift elements to the left
+        for i in start_index..self.length {
+            self.inner[i] = mem::replace(&mut self.inner[i + 1], T::default());
+        }
+
+        self.tail = self.tail - 1;
+        self.length = self.length - 1;
+    }
+
+    fn shift_all_right(&mut self, offset: usize) {
         // Ensure there is enough space in the inner array
         while self.inner.len() <= self.tail + offset {
             self.grow_inner();
