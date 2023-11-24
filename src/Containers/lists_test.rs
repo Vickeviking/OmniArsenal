@@ -4,6 +4,7 @@
 #[cfg(test)]
 pub mod list_tests {
     use super::super::SinglyLinkedList;
+    use super::super::DoublyLinkedList;
     use super::super::ArrayList;
 
     // SinglyLinkedList tests
@@ -36,6 +37,17 @@ pub mod list_tests {
         iterator_test();
         formatting_test();
         big_list_test();
+    }
+
+    #[test]
+    pub fn test_doubly_linked_list() {
+        doubly_list_prepend_test();
+        doubly_list_append_test();
+        doubly_list_pop_front_test();
+        doubly_list_pop_back_test();
+        doubly_list_clear_test();
+        doubly_list_peek_front_test();
+        doubly_list_iterator_test();
     }
 
     // TEST AREA FOR ARRAY LIST STARTS //
@@ -306,6 +318,94 @@ pub mod list_tests {
 
 
 
+    // TEST AREA FOR DOUBLY LINKED LIST STARTS //
+
+    
+    #[test]
+    fn doubly_list_prepend_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+    
+        assert_eq!(*list.peek_front().unwrap(), 44);
+        list.prepend(45);
+        assert_eq!(*list.peek_front().unwrap(), 45);
+    }
+    
+    #[test]
+    fn doubly_list_append_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.append(42);
+        list.append(43);
+        list.append(44);
+    
+        assert_eq!(*list.peek_front().unwrap(), 42);
+    }
+    
+    #[test]
+    fn doubly_list_pop_front_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+    
+        assert_eq!(list.pop_front(), Some(44));
+        assert_eq!(list.pop_front(), Some(43));
+        assert_eq!(list.pop_front(), Some(42));
+        assert_eq!(list.pop_front(), None);
+    }
+
+    #[test]
+    fn doubly_list_pop_back_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+
+        assert_eq!(list.pop_back(), Some(42));
+        assert_eq!(list.pop_back(), Some(43));
+        assert_eq!(list.pop_back(), Some(44));
+        assert_eq!(list.pop_back(), None);
+    }
+
+    #[test]
+    fn doubly_list_clear_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+
+        assert_eq!(list.len, 2);
+        list.clear();
+        assert_eq!(list.len, 0);
+    }
+    
+    #[test]
+    fn doubly_list_peek_front_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+
+        assert_eq!(*list.peek_front().unwrap(), 44);
+    }
+
+    #[test]
+    fn doubly_list_iterator_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+
+        let mut iter = list.iter();
+        assert_eq!(iter.next().unwrap(), 44);
+        assert_eq!(iter.next().unwrap(), 43);
+        assert_eq!(iter.next().unwrap(), 42);
+        assert!(iter.next().is_none());
+    }
+
+    // TEST AREA FOR DOUBLY LINKED LIST ENDS //
+
 
 
 
@@ -317,7 +417,7 @@ pub mod list_tests {
         list.prepend(42);
 
         // Add assertions to test the behavior
-        assert_eq!(list.node_count, 1);
+        assert_eq!(list.len, 1);
         assert_eq!(list.total_size_bytes, std::mem::size_of::<i32>());
     }
 
@@ -328,7 +428,7 @@ pub mod list_tests {
         list.append(42);
 
         // Add assertions to test the behavior
-        assert_eq!(list.node_count, 1);
+        assert_eq!(list.len, 1);
         assert_eq!(list.total_size_bytes, std::mem::size_of::<i32>());
     }
 
@@ -431,25 +531,25 @@ pub mod list_tests {
         for i in 0..1000 {
             list.prepend(i);
         }
-        assert_eq!(list.node_count, 1000);
+        assert_eq!(list.len, 1000);
         assert_eq!(list.total_size_bytes, 1000 * std::mem::size_of::<i32>());
 
         for i in 0..1000 {
             assert_eq!(list.pop(), Some(999 - i));
         }
 
-        assert_eq!(list.node_count, 0);
+        assert_eq!(list.len, 0);
 
         for i in 0..1000 {
             list.append(i);
         }
-        assert_eq!(list.node_count, 1000);
+        assert_eq!(list.len, 1000);
 
         for i in 0..1000 {
             assert_eq!(list.pop(), Some(i));
         }
 
-        assert_eq!(list.node_count, 0);
+        assert_eq!(list.len, 0);
 
         list.prepend(42);
         list.prepend(43);

@@ -12,6 +12,7 @@ mod tests {
     pub fn test_all_lists() {
         lists_test::list_tests::test_array_list();
         lists_test::list_tests::test_singly_linked_list();
+        lists_test::list_tests::test_doubly_linked_list();
     }
 
 }

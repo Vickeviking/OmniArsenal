@@ -115,12 +115,6 @@ impl<T: Clone> SinglyLinkedList<T> {
 
 }
 
-impl<T: Clone> SinglyLinkedListIterator<T> {
-    fn new(start_at: SingleLink<T>) -> Self {
-        SinglyLinkedListIterator { current: start_at }
-    }
-}
-
 impl<T: Clone> Node<T> {
     fn new(data: T) -> Rc<RefCell<Node<T>>> {
         Rc::new(RefCell::new(Node{
@@ -175,4 +169,3 @@ impl<T: Clone + fmt::Debug> fmt::Debug for SinglyLinkedList<T> {
 }
 
 
-//TODO: Implement intoIter, iter, debug trait

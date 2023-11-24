@@ -139,7 +139,7 @@ impl<T: Default + Debug> ArrayList<T> {
     pub fn pop_at(&mut self, index: usize) -> Option<T> {
         if index < self.length {
             let item = mem::replace(&mut self.inner[index], T::default());
-            self.shift_all_left(index, 1);
+            self.shift_all_left(index);
             self.tail = self.tail - 1;
             self.length = self.length - 1;
             Some(item)
@@ -162,7 +162,7 @@ impl<T: Default + Debug> ArrayList<T> {
         }
     }
 
-    fn shift_all_left(&mut self, start_index: usize, offset: usize) {
+    fn shift_all_left(&mut self, start_index: usize) {
         // Ensure there is enough space in the inner array
         while self.inner.len() <= self.tail + 1 {
             self.grow_inner();
