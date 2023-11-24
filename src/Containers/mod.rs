@@ -7,6 +7,7 @@ pub mod lists {
     pub mod skip_list;
 
     pub use singly_linked_list::SinglyLinkedList;
+    pub use doubly_linked_list::DoublyLinkedList;
     pub use array_list::ArrayList;
 }
 

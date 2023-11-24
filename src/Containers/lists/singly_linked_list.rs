@@ -15,7 +15,7 @@ pub struct SinglyLinkedList<T: Clone> {
     head: SingleLink<T>,
     tail: SingleLink<T>,
     pub total_size_bytes: usize, // size in bytes
-    pub node_count: u64, // length in nodes
+    pub len: u64, // length in nodes
 }
 
 pub struct SinglyLinkedListIterator<T: Clone> {
@@ -38,7 +38,7 @@ impl<T: Clone> SinglyLinkedList<T> {
             head: None,
             tail: None,
             total_size_bytes: 0,
-            node_count: 0,
+            len: 0,
         }
     }
 
@@ -54,7 +54,7 @@ impl<T: Clone> SinglyLinkedList<T> {
 
         // increment length(u64) and size(bytes)
         self.head = Some(new.clone());
-        self.node_count += 1;
+        self.len += 1;
         self.total_size_bytes += std::mem::size_of::<T>();
     }
 
@@ -70,7 +70,7 @@ impl<T: Clone> SinglyLinkedList<T> {
 
         // increment length(u64) and size(bytes)
         self.tail = Some(new); //tail point to new "actual" tail
-        self.node_count += 1;
+        self.len += 1;
         self.total_size_bytes += std::mem::size_of::<T>();
     }
 
@@ -82,7 +82,7 @@ impl<T: Clone> SinglyLinkedList<T> {
             } else {
                 self.tail.take();
             }
-            self.node_count -= 1;
+            self.len -= 1;
             self.total_size_bytes -= std::mem::size_of::<T>();
             Rc::try_unwrap(head)
                 .ok()
@@ -169,7 +169,7 @@ impl<T: Clone + fmt::Debug> fmt::Debug for SinglyLinkedList<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SinglyLinkedList")
             .field("total_size_bytes", &self.total_size_bytes)
-            .field("node_count", &self.node_count)
+            .field("node_count", &self.len)
             .finish()
     }
 }
