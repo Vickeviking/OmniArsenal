@@ -9,6 +9,7 @@ pub mod lists {
     pub use singly_linked_list::SinglyLinkedList;
     pub use doubly_linked_list::DoublyLinkedList;
     pub use array_list::ArrayList;
+    pub use skip_list::SkipList;
 }
 
 pub mod trees {
