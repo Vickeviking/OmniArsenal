@@ -1,3 +1,9 @@
+/***
+*  Doubly Linked List
+*  pop_front, pop_back, peek_front, peek_back,append, prepend & clear: O(1) time complexity
+*  available Iterators: into_iter, iter, rev_iter
+*/
+
 use std::cell::{RefCell, Ref};
 use std::rc::{Rc, Weak};
 use std::mem::replace;

@@ -7,12 +7,17 @@ pub mod containers;
 
 #[cfg(test)]
 mod tests {
-    use crate::containers::lists_test;
+    use crate::containers::{lists_test, trees, trees_test};
     #[test]
     pub fn test_all_lists() {
         lists_test::list_tests::test_array_list();
         lists_test::list_tests::test_singly_linked_list();
         lists_test::list_tests::test_doubly_linked_list();
+    }
+
+    #[test]
+    pub fn test_all_trees() {
+        trees_test::tree_tests::test_binary_search_tree();
     }
 
 }
