@@ -91,7 +91,7 @@ impl<T: Default + Debug> ArrayList<T> {
             self.grow_inner();
         } 
         self.inner[self.tail] = item;
-        self.tail = self.tail + 1;
+        self.tail += 1;
     }
 
     pub fn prepend(&mut self, item: T) {
@@ -218,7 +218,7 @@ impl<T: Default + Debug> ArrayList<T> {
     
         // Shift elements to the right
         for i in (offset..self.length).rev() {
-            self.inner[i + 1] = mem::replace(&mut self.inner[i], T::default());
+            self.inner[i + 1] = std::mem::take(&mut self.inner[i]);
         }
     }
 

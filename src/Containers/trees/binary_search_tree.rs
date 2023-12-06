@@ -311,22 +311,22 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
         }
     }
 
-    fn tree_printer_traverse_helper(&self, sb: &mut String, padding: &str, pointer: &str, node: &Option<Rc<RefCell<Node<T>>>>) {
+    fn tree_printer_traverse_helper(sb: &mut String, padding: &str, pointer: &str, node: &Option<Rc<RefCell<Node<T>>>>) {
         if let Some(inner) = node {
             let node = inner.borrow();
             sb.push_str(padding);
             sb.push_str(pointer);
             sb.push_str(&format!("{:?}", node.data));
             sb.push('\n');
-
+    
             let padding_filler = if pointer == "└── " { "    " } else { "│   " };
             let padding = format!("{}{}", padding, padding_filler);
-
+    
             let pointer_for_right = "└── ";
             let pointer_for_left = if node.right.is_some() { "├── " } else { "└── " };
-
-            self.tree_printer_traverse_helper(sb, &padding, pointer_for_left, &node.left);
-            self.tree_printer_traverse_helper(sb, &padding, pointer_for_right, &node.right);
+    
+            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_left, &node.left);
+            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_right, &node.right);
         }
     }
     
@@ -362,7 +362,7 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
 impl<T: fmt::Debug + PartialOrd + Default + Clone> fmt::Debug for BinarySearchTree<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut sb = String::new();
-        self.tree_printer_traverse_helper(&mut sb, "", "", &self.root);
+        Self::tree_printer_traverse_helper(&mut sb, "", "", &self.root);
         write!(f, "{}", sb)
     }
 }
