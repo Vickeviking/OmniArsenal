@@ -5,6 +5,18 @@ use core::panic;
  *  Left < Root < Right
  *  O(log n) for search, insert, delete
  *  O(n) for traversal
+ * 
+ * Upsides:
+ * - Simple implementation
+ * - Efficient and fast search
+ * - Traversal allows for different orderings
+ * - Great for large amount of unsorted data
+ * 
+ * Downsides:
+ * - Worst-case performans is that of linked list
+ * - Unbalanced trees are easy to create
+ * - Unbalanced trees cant be repaired without rebuilding
+ * - Recursive algos can cause stack overflower when unbalanced.
  */
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -25,7 +37,7 @@ pub struct Node<T> {
 impl<T> Node<T> {
     pub fn new(data: T) -> Self {
         Node {
-            data: data,
+            data,
             left: None,
             right: None,
         }
@@ -49,7 +61,7 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
     }
     pub fn insert(&mut self, data: T) {
         let node = Node {
-            data: data,
+            data,
             left: None,
             right: None,
         };
@@ -171,7 +183,7 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
     }
 
     // Deletes a node with no children or one child
-    fn delete_max_one_child_node(node: NodeLink<T>, mut parent: NodeLink<T>, is_right: bool, num_child_nodes: usize) -> Option<T> {
+    fn delete_max_one_child_node(node: NodeLink<T>, parent: NodeLink<T>, is_right: bool, num_child_nodes: usize) -> T {
         if let Some(n) = node {
            if let Some(p) = parent {
             if num_child_nodes == 0 { // leaf node
@@ -182,31 +194,31 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
                 }
             } else if num_child_nodes == 1 { // node with one child
                 if is_right {
-                    if n.borrow().left.is_some() {
-                        p.borrow_mut().right = n.borrow().left.clone();
+                    p.borrow_mut().right = if n.borrow().left.is_some() {
+                        n.borrow().left.clone()
                     } else {
-                        p.borrow_mut().right = n.borrow().right.clone();
-                    }
+                        n.borrow().right.clone()
+                    };
                 } else {
-                    if n.borrow().left.is_some() {
-                        p.borrow_mut().left = n.borrow().left.clone();
+                    p.borrow_mut().left = if n.borrow().left.is_some() {
+                        n.borrow().left.clone()
                     } else {
-                        p.borrow_mut().left = n.borrow().right.clone();
-                    }
+                        n.borrow().right.clone()
+                    };
                 }
             }
            } else {
              panic!("root node should have been deleted earlier");
            }
             // return the data
-            Some(n.borrow().data.clone())
+            n.borrow().data.clone()
 
         } else {
-            None
+            panic!("node doesn't exist")
         }
     }
 
-    fn delete_2children_node(node: NodeLink<T>, _parent: NodeLink<T>, _is_right: bool) -> Option<T> {
+    fn delete_2children_node(node: NodeLink<T>, _parent: NodeLink<T>, _is_right: bool) -> T {
         // find presuccessor
         let presuccessor = Self::find_min(node.clone().as_ref().unwrap().borrow().right.clone());
         // take the presuccessor's data, swap it with the node's data
@@ -219,7 +231,7 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
 
     }
 
-    pub fn delete(&mut self, data: T) -> Option<T> {
+    pub fn delete(&mut self, data: T) -> T {
         let (node, parent, is_right) = Self::delete_helper( data, self.root.clone(), None, false);
         let num_child_nodes = Self::num_children(node.clone());
         if parent.is_none() && num_child_nodes <= 1 {
@@ -229,12 +241,12 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
             } else {
                 node.clone().unwrap().borrow().right.clone()
             };
-            return Some(node_data);
+            return node_data;
         }
         match num_child_nodes {
             0 | 1 => Self::delete_max_one_child_node( node, parent, is_right, num_child_nodes),
             2 => Self::delete_2children_node(node, parent, is_right),
-            _ => None,
+            _ => T::default(),
         }
     }
 
@@ -318,26 +330,32 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
         }
     }
     
-    fn balance_helper(sorted_vec: &[T], start: usize, end: usize, node: &mut Link<T>) {
-        if start > end {
-            return;
-        }
-        let mid = (start + end) / 2;
-        let mut new_node = Node::new(sorted_vec[mid].clone());
-        new_node.left = None;
-        new_node.right = None;
-        *node = Some(Rc::new(RefCell::new(new_node)));
-        if mid > 0 {
-            Self::balance_helper(sorted_vec, start, mid - 1, &mut node.as_ref().unwrap().borrow_mut().left);
-        }
-        Self::balance_helper(sorted_vec, mid + 1, end, &mut node.as_ref().unwrap().borrow_mut().right);
-    }
-    
     pub fn balance(&mut self) {
         let sorted_vec = self.in_order_traversal();
         self.root = None;
-        Self::balance_helper(&sorted_vec, 0, sorted_vec.len() - 1, &mut self.root);
+        let new_root = Self::balance_helper(&sorted_vec, 0, sorted_vec.len() - 1);
+        self.root = new_root;
     }
+    
+    fn balance_helper(sorted_vec: &[T], start: usize, end: usize) -> Link<T> {
+        if start > end {
+            None
+        } else {
+            let mid = (start + end) / 2;
+            let mut new_node = Node::new(sorted_vec[mid].clone());
+            
+            // Check if mid is greater than zero before subtracting 1
+            if mid > 0 {
+                new_node.left = Self::balance_helper(sorted_vec, start, mid - 1);
+            }
+            
+            new_node.right = Self::balance_helper(sorted_vec, mid + 1, end);
+            Some(Rc::new(RefCell::new(new_node)))
+        }
+    }
+    
+    
+    
 
 }
 
@@ -346,5 +364,11 @@ impl<T: fmt::Debug + PartialOrd + Default + Clone> fmt::Debug for BinarySearchTr
         let mut sb = String::new();
         self.tree_printer_traverse_helper(&mut sb, "", "", &self.root);
         write!(f, "{}", sb)
+    }
+}
+
+impl<T: PartialOrd + Default + Clone + Debug> Default for BinarySearchTree<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,12 +1,25 @@
 /***
-*  Doubly Linked List
-*  pop_front, pop_back, peek_front, peek_back,append, prepend & clear: O(1) time complexity
-*  available Iterators: into_iter, iter, rev_iter
-*/
+ *  Doubly Linked List
+ *  pop_front, pop_back, peek_front, peek_back,append, prepend & clear: O(1) time complexity
+ *  available Iterators: into_iter, iter, rev_iter
+ * 
+ * Upsides:
+ * - Low overhead allocation per item (but more than SLL)
+ * - Item count is only limited by heap size
+ * - Mutation while iterating is possible
+ * - Implementation is more complex but fairly simple
+ * - Inserts, deletes, and prepends remain efficient
+ * - Efficient reversion
+ * 
+ * Downsides:
+ * - Indexing still inefficient
+ * - Nodes allocated on heap are not cache friendly
+ * - An additional pointer per node is required
+ * - Implementation is more complex
+ */
 
 use std::cell::{RefCell, Ref};
 use std::rc::{Rc, Weak};
-use std::mem::replace;
 use std::fmt;
 
 type Link<T> = Option<Rc<RefCell<Node<T>>>>; // Strong reference to a node
@@ -171,7 +184,7 @@ impl<T: Default> Iterator for DoublyLinkedListIterator<T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.current.clone().map(|current| {
             self.current = current.borrow().next.clone();
-            replace(&mut current.borrow_mut().data, T::default())
+            std::mem::take(&mut current.borrow_mut().data)
         })
     }
 }
@@ -180,7 +193,7 @@ impl<T: Default> DoubleEndedIterator for DoublyLinkedListIterator<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.current.clone().map(|current| {
             self.current = current.borrow().prev.as_ref().and_then(|weak| weak.upgrade());
-            replace(&mut current.borrow_mut().data, T::default())
+            std::mem::take(&mut current.borrow_mut().data)
         })
     }
 }
@@ -212,3 +225,4 @@ impl<T: fmt::Debug + Default> fmt::Debug for DoublyLinkedList<T> {
         write!(f, "{}", list_str)
     }
 }
+

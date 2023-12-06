@@ -1,10 +1,24 @@
-/*
-* ArrayList
-* Wrapper that uses arrays under the hood
-* append/pop/get has O(1)
-* prepend has O(n)
-* constructor specifies initial size
-*/
+/***
+ * ArrayList
+ * Wrapper that uses arrays under the hood
+ * append/pop/get has O(1)
+ * prepend has O(n)
+ * constructor specifies initial size
+ * 
+ * Upsides:
+ * - Speed: Arrays/slices make things really fast
+ * - Simple and fast element access
+ * - Clear ownership structures
+ * - Fast append and iteration
+ * - Very CPU cache friendly
+ * 
+ * Downsides:
+ * - Operations other than append require shifting elements
+ * - Growth is expensive (requires copying to new array)
+ * - A single large chunk of memory is required
+ * - Size is limited by usize type, which differs from platform to platform
+ * - Growth speed decreases with size
+ */
 
 //todo add iterator traits
 
@@ -70,9 +84,9 @@ impl<T: Default + Debug> ArrayList<T> {
         self.inner = new_inner;
     }
 
-    pub fn append(&mut self, item: T) -> () {
+    pub fn append(&mut self, item: T) {
         //println!("appending {item:?} to {self:?}");
-        self.length = self.length + 1;
+        self.length += 1;
         if self.inner.len() <= self.length {
             self.grow_inner();
         } 
@@ -80,7 +94,7 @@ impl<T: Default + Debug> ArrayList<T> {
         self.tail = self.tail + 1;
     }
 
-    pub fn prepend(&mut self, item: T) -> () {
+    pub fn prepend(&mut self, item: T) {
         //println!("prepending {item:?} to {self:?}");
         // If the array is empty, append the item instead, avoids shifting 
         if self.length == 0 {
@@ -88,7 +102,7 @@ impl<T: Default + Debug> ArrayList<T> {
             return;
         }
 
-        self.length = self.length + 1;
+        self.length += 1;
 
         if self.inner.len() <= self.length {
             self.grow_inner();
@@ -98,7 +112,7 @@ impl<T: Default + Debug> ArrayList<T> {
         // front now empty, insert item
         self.inner[0] = item;
         // move tail back one
-        self.tail = self.tail + 1;
+        self.tail += 1;
     }
 
     pub fn set(&mut self, index: usize, el: T) -> Option<T> {
@@ -110,23 +124,23 @@ impl<T: Default + Debug> ArrayList<T> {
         Some(item)
     }
 
-    pub fn insert_at( &mut self, index: usize, el: T) -> () {
+    pub fn insert_at( &mut self, index: usize, el: T)  {
         // insert el at index and return replaced mem
         if index >= self.length {
-            return (); //can't insert at out of bounds index
+            return ; //can't insert at out of bounds index
         };
         // shift all items to the right
         self.shift_slice_right(index);
         // insert el at just freed index
         self.inner[index] = el;
         // move tail back one and increment length
-        self.tail = self.tail + 1;
-        self.length = self.length + 1;
+        self.tail += 1;
+        self.length += 1;
     }
 
     pub fn pop(&mut self) -> Option<T> {
         if self.tail > 0 {
-            let item = mem::replace(&mut self.inner[self.tail - 1], T::default());
+            let item = std::mem::take(&mut self.inner[self.tail - 1]);
             //println!("removing item {:?}", item);
             self.tail -= 1;
             self.length -= 1;
@@ -138,10 +152,10 @@ impl<T: Default + Debug> ArrayList<T> {
 
     pub fn pop_at(&mut self, index: usize) -> Option<T> {
         if index < self.length {
-            let item = mem::replace(&mut self.inner[index], T::default());
+            let item = std::mem::take(&mut self.inner[index]);
             self.shift_all_left(index);
-            self.tail = self.tail - 1;
-            self.length = self.length - 1;
+            self.tail -= 1;
+            self.length -= 1;
             Some(item)
         } else {
             None //can't pop an out of bounds index
@@ -175,7 +189,7 @@ impl<T: Default + Debug> ArrayList<T> {
     
         // Shift elements to the left
         for i in start_index..self.length {
-            self.inner[i] = mem::replace(&mut self.inner[i + 1], T::default());
+            self.inner[i] = std::mem::take(&mut self.inner[i + 1]);
         }
     }
 
@@ -187,7 +201,7 @@ impl<T: Default + Debug> ArrayList<T> {
             return;
         }
         for i in (start_index..=self.length).rev() {
-            self.inner[i + 1] = std::mem::replace(&mut self.inner[i], T::default());
+            self.inner[i + 1] = std::mem::take(&mut self.inner[i]);
         }
     }
 
@@ -260,5 +274,10 @@ impl<T: fmt::Debug> fmt::Debug for ArrayList<T> {
             .field("tail", &self.tail)
             .field("inner", &&self.inner[..])
             .finish()
+    }
+}
+impl<T: Default + Debug> Default for ArrayList<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }

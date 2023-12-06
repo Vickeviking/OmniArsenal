@@ -126,7 +126,7 @@ pub mod tree_tests {
     fn test_delete_root() {
         let mut bst = binary_search_tree::BinarySearchTree::new();
         bst.insert(10);
-        assert_eq!(bst.delete(10), Some(10));
+        assert_eq!(bst.delete(10), 10);
         assert_eq!(bst.root, None);
     }
 
@@ -136,7 +136,7 @@ pub mod tree_tests {
         bst.insert(10);
         bst.insert(5);
         bst.insert(15);
-        assert_eq!(bst.delete(5), Some(5));
+        assert_eq!(bst.delete(5), 5);
         // Check that 5 is no longer in the tree
     }
 
@@ -147,7 +147,7 @@ pub mod tree_tests {
         bst.insert(5);
         bst.insert(15);
         bst.insert(12);
-        assert_eq!(bst.delete(15), Some(15));
+        assert_eq!(bst.delete(15), 15);
         // Check that 15 is replaced with 12 in the tree
     }
 
@@ -159,7 +159,7 @@ pub mod tree_tests {
         bst.insert(15);
         bst.insert(12);
         bst.insert(20);
-        assert_eq!(bst.delete(15), Some(15));
+        assert_eq!(bst.delete(15), 15);
         assert_eq!(bst.search(10), true);
         assert_eq!(bst.search(5), true);
         assert_eq!(bst.search(15), false); // 15 should be deleted
@@ -173,12 +173,39 @@ pub mod tree_tests {
         for i in 1..100 {
             bst.insert(i);
         }
-        assert_eq!(bst.delete(50), Some(50));
+        assert_eq!(bst.delete(50), 50);
         // Check that 50 is no longer in the tree
         assert_eq!(bst.search(50), false);
         // Check that all other nodes are still in the tree
         for i in 1..100 {
             if i != 50 {
+                assert_eq!(bst.search(i), true);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bst_balance() {
+        let mut bst = binary_search_tree::BinarySearchTree::new();
+        for i in 1..25 {
+            bst.insert(i);
+        }
+        assert_eq!(bst.delete(10), 10);
+        // Check that 50 is no longer in the tree
+        assert_eq!(bst.search(10), false);
+        // Check that all other nodes are still in the tree
+        for i in 1..25 {
+            if i != 10 {
+                assert_eq!(bst.search(i), true);
+            }
+        }
+
+        bst.balance();
+
+        assert_eq!(bst.search(10), false);
+        // Check that all other nodes are still in the tree
+        for i in 1..25 {
+            if i != 10 {
                 assert_eq!(bst.search(i), true);
             }
         }

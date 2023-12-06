@@ -1,8 +1,22 @@
-/*
-* Singly Linked List
-* prepend, append, pop, peek, is_empy & clear are O(1) time complexity
-* FIFO or LIFO behaviour depending on push method used
-* available Iterators: into_iter, iter. No rev_iter while singly linked
+/***
+ * Singly Linked List
+ * prepend, append, pop, peek, is_empy & clear are O(1) time complexity
+ * FIFO or LIFO behaviour depending on push method used
+ * available Iterators: into_iter, iter. No rev_iter while singly linked
+ * 
+ * Upsides: 
+ * - Low overhead allocation per item
+ * - Item count is only limited by heap size
+ * - Mutation while iterating is possible
+ * - A direction is strictly enforced - there is no going back
+ * - Implementation is simple
+ * - Efficient append, prepend, delete, and insert operations compared to arrays
+ * 
+ * Downsides:
+ * - Indexing is inefficient, since it must iterate over all nodes
+ * - Iteration in general involves a lot of jumping around in heap which takes time and is not cache friendly
+ * - Reversing list is very inefficient
+
 */
 
 use std::rc::Rc;
@@ -118,7 +132,7 @@ impl<T: Clone> SinglyLinkedList<T> {
 impl<T: Clone> Node<T> {
     fn new(data: T) -> Rc<RefCell<Node<T>>> {
         Rc::new(RefCell::new(Node{
-            data: data,
+            data,
             next: None,
         })) 
     }
