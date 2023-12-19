@@ -13,6 +13,12 @@ pub mod tree_tests {
         test_delete_node_with_one_child();
         test_delete_node_with_two_children();
         test_delete_node_in_large_tree();
+        test_bst_balance();
+        // test_iterator();
+        // test_into_iterator();
+        // test_iterator_rev();
+        // test_into_iterator_rev();
+
 
     }
 
@@ -126,7 +132,7 @@ pub mod tree_tests {
     fn test_delete_root() {
         let mut bst = binary_search_tree::BinarySearchTree::new();
         bst.insert(10);
-        assert_eq!(bst.delete(10), 10);
+        assert_eq!(bst.delete(10), Some(10));
         assert_eq!(bst.root, None);
     }
 
@@ -136,7 +142,7 @@ pub mod tree_tests {
         bst.insert(10);
         bst.insert(5);
         bst.insert(15);
-        assert_eq!(bst.delete(5), 5);
+        assert_eq!(bst.delete(5), Some(5));
         // Check that 5 is no longer in the tree
     }
 
@@ -147,7 +153,7 @@ pub mod tree_tests {
         bst.insert(5);
         bst.insert(15);
         bst.insert(12);
-        assert_eq!(bst.delete(15), 15);
+        assert_eq!(bst.delete(15), Some(15));
         // Check that 15 is replaced with 12 in the tree
     }
 
@@ -159,7 +165,7 @@ pub mod tree_tests {
         bst.insert(15);
         bst.insert(12);
         bst.insert(20);
-        assert_eq!(bst.delete(15), 15);
+        assert_eq!(bst.delete(15), Some(15));
         assert_eq!(bst.search(10), true);
         assert_eq!(bst.search(5), true);
         assert_eq!(bst.search(15), false); // 15 should be deleted
@@ -173,7 +179,7 @@ pub mod tree_tests {
         for i in 1..100 {
             bst.insert(i);
         }
-        assert_eq!(bst.delete(50), 50);
+        assert_eq!(bst.delete(50), Some(50));
         // Check that 50 is no longer in the tree
         assert_eq!(bst.search(50), false);
         // Check that all other nodes are still in the tree
@@ -190,7 +196,7 @@ pub mod tree_tests {
         for i in 1..25 {
             bst.insert(i);
         }
-        assert_eq!(bst.delete(10), 10);
+        assert_eq!(bst.delete(10), Some(10));
         // Check that 50 is no longer in the tree
         assert_eq!(bst.search(10), false);
         // Check that all other nodes are still in the tree
@@ -210,6 +216,33 @@ pub mod tree_tests {
             }
         }
     }
+
+    #[test]
+    fn test_iterator() {
+        let mut tree = binary_search_tree::BinarySearchTree::new();
+        tree.insert(5);
+        tree.insert(3);
+        tree.insert(8);
+        tree.insert(2);
+        tree.insert(4);
+        tree.insert(7);
+        tree.insert(9);
+
+        let result: Vec<_> = tree.in_order_traversal();
+        assert_eq!(result, vec![2, 3, 4, 5, 7, 8, 9]);
+    }
+
+    // #[test]
+    // fn test_into_iterator() {
+    // }
+
+    // #[test]
+    // fn test_iterator_rev() {
+    // }
+
+    // #[test]
+    // fn test_into_iterator_rev() {
+    // }
 }
     
 

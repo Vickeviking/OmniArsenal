@@ -1,4 +1,3 @@
-use core::panic;
 /***
  *  Binary Search Tree
  *  Sorted
@@ -231,7 +230,7 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
 
     }
 
-    pub fn delete(&mut self, data: T) -> T {
+    pub fn delete(&mut self, data: T) -> Option<T> {
         let (node, parent, is_right) = Self::delete_helper( data, self.root.clone(), None, false);
         let num_child_nodes = Self::num_children(node.clone());
         if parent.is_none() && num_child_nodes <= 1 {
@@ -241,12 +240,12 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
             } else {
                 node.clone().unwrap().borrow().right.clone()
             };
-            return node_data;
+            return Some(node_data);
         }
         match num_child_nodes {
-            0 | 1 => Self::delete_max_one_child_node( node, parent, is_right, num_child_nodes),
-            2 => Self::delete_2children_node(node, parent, is_right),
-            _ => T::default(),
+            0 | 1 => Some(Self::delete_max_one_child_node( node, parent, is_right, num_child_nodes)),
+            2 => Some(Self::delete_2children_node(node, parent, is_right)),
+            _ => None,
         }
     }
 
@@ -353,9 +352,6 @@ impl<T: PartialOrd + Default + Clone + Debug> BinarySearchTree<T> {
             Some(Rc::new(RefCell::new(new_node)))
         }
     }
-    
-    
-    
 
 }
 
