@@ -1,5 +1,6 @@
 use std::ops::Index;
-pub fn bubble_sort<T, O>(container: &mut T)
+
+pub fn selection_sort<T, O>(container: &mut T)
 where
     T: Index<usize, Output = O> + AsMut<[O]> + AsRef<[O]> + PartialOrd + Sized,
     O: PartialOrd,

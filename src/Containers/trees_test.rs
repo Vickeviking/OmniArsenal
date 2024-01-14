@@ -2,7 +2,9 @@
 
 #[cfg(test)]
 pub mod tree_tests {
-    use super::super::binary_search_tree;
+
+    use super::super::super::containers::trees::binary_search_tree;
+    use super::super::super::containers::trees::red_black_tree;
 
     pub fn test_binary_search_tree() {
         test_bst_insert();
@@ -18,8 +20,16 @@ pub mod tree_tests {
         // test_into_iterator();
         // test_iterator_rev();
         // test_into_iterator_rev();
+    }
 
-
+    pub fn test_red_black_tree() {
+        test_red_black_tree_insert();
+        test_red_black_tree_left_right_rotation();
+        test_red_black_tree_right_left_rotation();
+        test_red_black_tree_right_rotation();
+        test_red_black_tree_left_rotation();
+        test_red_black_tree_many_rotations();
+        test_red_black_tree_heavy_random();
     }
 
     // TEST AREA FOR BST
@@ -40,7 +50,6 @@ pub mod tree_tests {
         bst.insert(8);
 
         let pre_order_vec: Vec<i32> = bst.in_order_traversal();
-        dbg!(bst);
         assert_eq!(pre_order_vec, vec![2, 3, 4, 5, 6, 7, 8]);
 
 
@@ -232,17 +241,36 @@ pub mod tree_tests {
         assert_eq!(result, vec![2, 3, 4, 5, 7, 8, 9]);
     }
 
-    // #[test]
-    // fn test_into_iterator() {
-    // }
 
-    // #[test]
-    // fn test_iterator_rev() {
-    // }
+    // TEST AREA FOR RED BLACK TREE
 
-    // #[test]
-    // fn test_into_iterator_rev() {
-    // }
+    #[test]
+    fn test_red_black_tree_insert() {
+    }
+
+    #[test]
+    fn test_red_black_tree_left_right_rotation() {
+    }
+
+    #[test]
+    fn test_red_black_tree_right_left_rotation() {
+    }
+
+    #[test]
+    fn test_red_black_tree_right_rotation() {
+    }
+
+    #[test]
+    fn test_red_black_tree_many_rotations() {
+    }
+
+    #[test]
+    fn test_red_black_tree_left_rotation() {
+    }
+
+    #[test]
+    fn test_red_black_tree_heavy_random() {
+    }
 }
     
 

@@ -3,10 +3,11 @@
 
 #[cfg(test)]
 pub mod list_tests {
-    use super::super::SinglyLinkedList;
-    use super::super::DoublyLinkedList;
-    use super::super::ArrayList;
 
+    use super::super::super::containers::lists::array_list::ArrayList;
+    use super::super::super::containers::lists::singly_linked_list::SinglyLinkedList;
+    use super::super::super::containers::lists::doubly_linked_list::DoublyLinkedList;
+    
     // SinglyLinkedList tests
 
     #[test]
