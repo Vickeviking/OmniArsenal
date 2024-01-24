@@ -260,22 +260,79 @@ pub mod tree_tests {
 
     #[test]
     fn test_red_black_tree_left_right_rotation() {
+        let mut rb_tree: RedBlackTree<i32, i32> = red_black_tree::RedBlackTree::new_empty();
+        rb_tree.insert(10, 10);
+        rb_tree.insert(4, 4);
+        rb_tree.insert(8, 8);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
     }
 
     #[test]
     fn test_red_black_tree_right_left_rotation() {
+        
+        let mut rb_tree: RedBlackTree<i32, i32> = red_black_tree::RedBlackTree::new_empty();
+        rb_tree.insert(5, 5);
+        rb_tree.insert(10, 10);
+        rb_tree.insert(8, 8);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+
+        //lets test a slightly bigger tree with no null nodes
+        let mut rb_tree2: RedBlackTree<i32, i32> = red_black_tree::RedBlackTree::new_empty();
+        rb_tree2.insert(20, 20);
+        rb_tree2.insert(10, 10);
+        rb_tree2.insert(30, 30);
+        rb_tree2.insert(5, 5);
+        rb_tree2.insert(15, 15);
+        rb_tree2.insert(25, 25);
+        rb_tree2.insert(35, 35);
+        rb_tree2.insert(22, 22);
+        rb_tree2.insert(28, 28);
+        rb_tree2.insert(32, 32);
+        rb_tree2.insert(38, 38);
+        //should now look like 
+        //              20
+        //       10               30
+        //   5       15      25       35
+        //                 22  28   32  38
+        
+        assert!(rb_tree2.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree2);
+        
+        
+        
     }
 
     #[test]
     fn test_red_black_tree_right_rotation() {
-    }
-
-    #[test]
-    fn test_red_black_tree_many_rotations() {
+        
+        let mut rb_tree: RedBlackTree<i32, i32> = red_black_tree::RedBlackTree::new_empty();
+        rb_tree.insert(3, 3);
+        rb_tree.insert(2, 2);
+        rb_tree.insert(1, 1);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+        
     }
 
     #[test]
     fn test_red_black_tree_left_rotation() {
+        
+        let mut rb_tree: RedBlackTree<i32, i32> = red_black_tree::RedBlackTree::new_empty();
+        rb_tree.insert(1, 1);
+        rb_tree.insert(2, 2);
+        rb_tree.insert(3, 3);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+    }
+
+    #[test]
+    fn test_red_black_tree_many_rotations() {
     }
 
     #[test]

@@ -44,7 +44,7 @@ use std::rc::{Rc, Weak};
      Red,
  }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
  enum Direction {
      Left,
      Right,
@@ -177,12 +177,12 @@ impl<K: PartialOrd + PartialEq + Display, V> Node<K, V>{
 
 
 //********** RedBlackTree *****************/
- pub struct RedBlackTree<K: PartialOrd + PartialEq + Display, V: Clone> {
+ pub struct RedBlackTree<K: PartialOrd + PartialEq + Display + Debug, V: Clone> {
      root: RBTree<K, V>
  }
 
 
-impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
+impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> RedBlackTree<K, V> {
     pub fn new_empty() -> Self {
         RedBlackTree {
             root: None,
@@ -216,7 +216,8 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
     }
 
     fn rotate_left(&mut self, x: NonNullRBTree<K, V>) {
-        let mut y_is_root = false; 
+        print!("rotating: {:?}\n", x.borrow().key);
+        let mut x_is_root = false; 
         let y: RBTree<K, V> = x.borrow().right_branch().take();
         {
             x.borrow_mut().right = y.as_ref().unwrap().borrow().left_branch().take();
@@ -225,43 +226,51 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
             x.borrow().right_branch().as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x));
         }
         // y.p = x.p
-        let weak_y = Rc::downgrade(&y.unwrap());
+    
         let parent = x.borrow().parent.clone();
         if let Some(ref parent) = parent {
-            if self.cmp_nodes(Some(x.clone()), Some(parent.clone().upgrade().expect("rotate_left() failed, RBTree")).unwrap().borrow().left_branch()) {
-                parent.clone().upgrade().expect("rotate_left() failed, RBTree").borrow_mut().left = Some(Rc::clone(&weak_y.upgrade().unwrap()));
+            if self.cmp_nodes(Some(x.clone()), Some(parent.clone().upgrade().expect("rotate_left() failed, RBTree")).unwrap().borrow().right_branch()) {
+                parent.clone().upgrade().expect("rotate_left() failed, RBTree").borrow_mut().right = Some(Rc::clone(&y.as_ref().unwrap()));
             } else {
-                parent.clone().upgrade().expect("rotate_left() failed, RBTree").borrow_mut().right = Some(Rc::clone(&weak_y.upgrade().unwrap()));
+                parent.clone().upgrade().expect("rotate_left() failed, RBTree").borrow_mut().left = Some(Rc::clone(&y.as_ref().unwrap()));
             }
         } else {
-            self.root = Some(Rc::clone(&weak_y.upgrade().unwrap()));
-            y_is_root = true;
+            self.root = Some(Rc::clone(&y.as_ref().unwrap()));
+            x_is_root = true;
         }
         unsafe {
-            let y_mut = &mut *(weak_y.upgrade().unwrap().as_ptr());
+            let y_mut = &mut *(y.as_ref().unwrap().as_ptr());
             y_mut.left = Some(x.clone());
-
-            if y_is_root {
+            if x_is_root {
                 y_mut.direction = Direction::Root;
+            } else {
+                y_mut.direction = x.borrow().direction.clone();
+            }
+            //y.parent = x.parent
+            let x_parent = x.borrow().parent.clone();
+            if let Some(ref x_parent) = x_parent {
+                y_mut.parent = Some(Rc::downgrade(&x_parent.clone().upgrade().expect("rotate_left() failed, RBTree")));
+            } else {
+                y_mut.parent = None;
             }
         }
         unsafe {
             let x_mut = &mut *(Rc::clone(&x).as_ptr());
-            x_mut.parent = Some(weak_y);
+            x_mut.parent = Some(Rc::downgrade(&y.as_ref().unwrap()));
+    
+            // x is now a left child
             x_mut.direction = Direction::Left;
-
+    
             //if x has a right child, it is now a right child , it was previously a left child
             if x_mut.right.is_some() {
                 x_mut.right_branch().as_ref().unwrap().borrow_mut().direction = Direction::Right;
             }
         }
-
-
-
     }
 
     fn rotate_right(&mut self, y: NonNullRBTree<K, V>) {
-        let mut x_is_root = false;
+        print!("rotating: {:?}\n", y.borrow().key);
+        let mut y_is_root = false; 
         let x: RBTree<K, V> = y.borrow().left_branch().take();
         {
             y.borrow_mut().left = x.as_ref().unwrap().borrow().right_branch().take();
@@ -269,30 +278,40 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
         if y.borrow().left.is_some() {
             y.borrow().left_branch().as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&y));
         }
-        let weak_x = Rc::downgrade(&x.unwrap());
+        // x.p = y.p
+
         let parent = y.borrow().parent.clone();
         if let Some(ref parent) = parent {
-            if self.cmp_nodes(Some(y.clone()), Some(parent.clone().upgrade().expect("rotate_right() failed, RBTree")).unwrap().borrow().right_branch()) {
-                parent.clone().upgrade().expect("rotate_right() failed, RBTree").borrow_mut().right = Some(Rc::clone(&weak_x.upgrade().unwrap()));
+            if self.cmp_nodes(Some(y.clone()), Some(parent.clone().upgrade().expect("rotate_right() failed, RBTree")).unwrap().borrow().left_branch()) {
+                parent.clone().upgrade().expect("rotate_right() failed, RBTree").borrow_mut().left = Some(Rc::clone(&x.as_ref().unwrap()));
             } else {
-                parent.clone().upgrade().expect("rotate_right() failed, RBTree").borrow_mut().left = Some(Rc::clone(&weak_x.upgrade().unwrap()));
+                parent.clone().upgrade().expect("rotate_right() failed, RBTree").borrow_mut().right = Some(Rc::clone(&x.as_ref().unwrap()));
             }
         } else {
-            self.root = Some(Rc::clone(&weak_x.upgrade().unwrap()));
-            x_is_root = true;
+            self.root = Some(Rc::clone(&x.as_ref().unwrap()));
+            y_is_root = true;
         }
         unsafe {
-            let x_mut = &mut *(weak_x.upgrade().unwrap().as_ptr());
+            let x_mut = &mut *(x.as_ref().unwrap().as_ptr());
             x_mut.right = Some(y.clone());
-
-            if x_is_root {
+            if y_is_root {
                 x_mut.direction = Direction::Root;
+            } else {
+                x_mut.direction = y.borrow().direction.clone();
             }
-
+            //x.parent = y.parent
+            let y_parent = y.borrow().parent.clone();
+            if let Some(ref y_parent) = y_parent {
+                x_mut.parent = Some(Rc::downgrade(&y_parent.clone().upgrade().expect("rotate_right() failed, RBTree")));
+            } else {
+                x_mut.parent = None;
+            }
         }
         unsafe {
             let y_mut = &mut *(Rc::clone(&y).as_ptr());
-            y_mut.parent = Some(weak_x);
+            y_mut.parent = Some(Rc::downgrade(&x.as_ref().unwrap()));
+
+            // y is now a right child
             y_mut.direction = Direction::Right;
 
             //if y has a left child, it is now a left child , it was previously a right child
@@ -300,6 +319,9 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
                 y_mut.left_branch().as_ref().unwrap().borrow_mut().direction = Direction::Left;
             }
         }
+
+        // lets debug to see if everything is chained correctly, z.key, z.p.key, z.p.p.key
+        
     }
 
     pub fn insert(&mut self, key: K, value: V) {
@@ -342,16 +364,16 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
 
     
     fn rb_tree_insert_fixup(&mut self, mut z: NonNullRBTree<K, V>) {
-        while z.borrow().parent.clone().unwrap().upgrade()
+        while z.borrow().parent.as_ref().unwrap().upgrade()
                .expect("rb_tree_insert_fixup() failed, RBTree").borrow().color == Color::Red {
-            if z.borrow().parent.clone().unwrap().upgrade()
+            if z.borrow().parent.as_ref().unwrap().upgrade()
                 .expect("rb_tree_insert_fixup() failed, RBTree").borrow().is_left() {
                 // z's parent is a left-child, helps us when trying to find its aunt 
                 // we know z has a parent, and while z.p is a leftchild we know it has a gp
-                if z.borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow().right.clone().is_some() { // if uncle is red in a safe way
-                    if z.borrow().parent.clone().unwrap().upgrade()
+                if z.borrow().parent.as_ref().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent.as_ref().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().right.as_ref().is_some() { // if uncle is red in a safe way
+                    if z.borrow().parent.as_ref().unwrap().upgrade()
                         .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
                         .expect("error in rb-insert_fix").borrow().right.clone().unwrap().borrow().is_red() {
                         // perform a color flip, we dont got any references now and can get a mutable one
@@ -373,20 +395,21 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
                         z = new_z;
                     }
                 } else if z.borrow().is_right() {
+                    print!("left - right rotate\n");
+
                     let newz = z.borrow().parent.clone().unwrap().upgrade()
                                                          .expect("error in rb-insert_fix");
                     z = newz;
-                    print!("z key: {}", z.borrow().key);
                     self.rotate_left(z.clone());
-                }
+                } 
+                print!("left - left rotate\n,  if only msg its true, otherwise could be left-rigth\n");
                 //color flipzz
-                // y.p.color = BLACK
-                z.borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
-                // y.p.p.color = RED
-                z.borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
+                let parent = z.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                parent.borrow_mut().color = Color::Black;
+
+                let grandparent = parent.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                grandparent.borrow_mut().color = Color::Red;
+
                 // right rotate z.p.p
                 self.rotate_right(z.borrow().parent.clone().unwrap().upgrade()
                 .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
@@ -396,7 +419,7 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
                 // we know z has a parent, and while z.p is a rightchild we know it has a gp
                 if z.borrow().parent.clone().unwrap().upgrade()
                 .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow().left.clone().is_some() { // if uncle is red in a safe way
+                .expect("error in rb-insert_fix").borrow().left.clone().is_some() { //uncle exists 
                 if z.borrow().parent.clone().unwrap().upgrade()
                     .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
                     .expect("error in rb-insert_fix").borrow().left.clone().unwrap().borrow().is_red() {
@@ -419,23 +442,25 @@ impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
                     z = new_z;
                 }
                 } else if z.borrow().is_left() {
-                let newz = z.borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix");
-                z = newz;
-                self.rotate_right(z.clone());
+                    print!("right - left rotate\n");
+                    let newz = z.borrow().parent.as_ref().unwrap().upgrade()
+                        .expect("error in rb-insert_fix");
+                    z = newz;
+                    self.rotate_right(z.clone());
                 }
+                print!("right - right rotate\n,  if only msg its true, otherwise could be right-left\n");
+
                 //color flipzz
-                // z.p.color = BLACK
-                z.borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
-                // z.p.p.color = RED
-                z.borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
+                let parent = z.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                parent.borrow_mut().color = Color::Black;
+
+                let grandparent = parent.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                grandparent.borrow_mut().color = Color::Red;
+
                 // left rotate z.p.p
-                self.rotate_left(z.borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").clone())
+                self.rotate_left(z.borrow().parent.as_ref().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent
+                    .as_ref().unwrap().upgrade().expect("error in rb-insert_fix").clone());
             }
             
         }
