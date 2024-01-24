@@ -4,6 +4,8 @@
 
 // In lib.rs
 
+
+// *** Container Modules ***
 pub mod containers {
     pub mod lists {
         pub mod array_list;
@@ -35,6 +37,16 @@ pub mod trees_test {
     pub use super::containers::trees_test::*;
 }
 
+pub mod list {
+    pub use super::containers::lists::*;
+}
+pub mod tree {
+    pub use super::containers::trees::*;
+}
+
+
+
+// *** Algorithms Modules ***
 pub mod algorithms {
     pub mod sorting {
         pub mod bubble_sort;
@@ -59,16 +71,30 @@ pub mod sorting_tests {
     pub use super::algorithms::sorting_test::*;
 }
 
-
-
 pub mod sort {
     pub use super::algorithms::sorting::*;
 }
-pub mod list {
-    pub use super::containers::lists::*;
+
+
+// *** Math Modules ***
+pub mod math {
+    pub mod algebra {
+        pub mod diophantineEq;
+        pub mod algebra_test;
+
+        pub use diophantineEq::DiophantineEq;
+    }
+
+    pub mod calculus {
+        pub mod calculus_test;
+    }
+
 }
-pub mod tree {
-    pub use super::containers::trees::*;
+pub mod algebra_tests {
+    pub use super::math::algebra::algebra_test;
+}
+pub mod calculus_tests {
+    pub use super::math::calculus::calculus_test;
 }
 
 // Any other top-level declarations or configurations go here.
@@ -78,6 +104,8 @@ mod tests {
     use super::list_tests;
     use super::trees_test;
     use super::sorting_tests;
+    use super::algebra_tests;
+    use super::calculus_tests;
     #[test]
     pub fn test_all_lists() {
         
@@ -101,6 +129,16 @@ mod tests {
         sorting_tests::sorting_tests::test_heap_sort();
         sorting_tests::sorting_tests::test_merge_sort();
         sorting_tests::sorting_tests::test_quick_sort();
+
+    }
+
+    #[test]
+    pub fn test_all_math() {
+
+    }
+
+    #[test]
+    pub fn test_all_calculus() {
 
     }
 }

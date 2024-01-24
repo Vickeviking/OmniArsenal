@@ -1,14 +1,3 @@
-use std::{
-    rc::{Rc, Weak}, 
-    cell::RefCell,
-    fmt::{self, Debug},
-    cmp::Ordering,
-    cmp,
-    mem, 
-    ops::{Deref, DerefMut}, 
-    cell::RefMut, 
-    };
-
 
 /***
  * Red Black Tree
@@ -34,351 +23,421 @@ use std::{
  *  2. complex
  */
 
-// type alias
- type Tree<K, V> = Option<Rc<RefCell<Node<K, V>>>>;
- type BareTree<K, V> = Rc<RefCell<Node<K, V>>>;
- type WeakTree<K, V> = Option<Weak<RefCell<Node<K, V>>>>;
+use std::rc::{Rc, Weak};
+ use std::cell::RefCell;
+ use std::option::Option;
+ use std::{cmp, str};
+ use core::fmt;
+ use std::fmt::Display;
+ use std::fmt::Debug;    
 
-// to avoid repeating the same type signature
-pub trait NodeKey: Clone + Debug + PartialOrd + Ord {}
-pub trait NodeValue: Clone + Debug + PartialOrd {}
-impl<T: Clone + Debug + PartialOrd + Ord> NodeKey for T {}
-impl<T: Clone + Debug + PartialOrd> NodeValue for T {}
+ type RBTree<K, V> = Option<Rc<RefCell<Node<K, V>>>>; //possibly None
+ type RBTreeWeak<K, V> = Option<Weak<RefCell<Node<K, V>>>>; //possibly None
+ type NonNullRBTree<K, V> = Rc<RefCell<Node<K, V>>>; //not None
+ type NonNullRBTreeWeak<K, V> = Weak<RefCell<Node<K, V>>>; //not None
 
-#[derive(Clone, Debug, PartialEq, Copy)]
-pub enum Color {
-    Red,
-    Black,
-}
+ 
 
-#[derive(PartialEq)]
-pub enum RBOperation {
-    LeftNode,
-    RightNode,
-}
-
- // Represents the direction of rotation
- #[derive(Debug, Clone, Copy)]
- pub enum Rotation {
-     Left,
-     Right,
+ #[derive(PartialEq, Eq, Clone)]
+ enum Color {
+     Black,
+     Red,
  }
 
- /// ******************************** Node ********************************
-#[derive(Clone, Debug)]
- pub struct Node<K: NodeKey, V:NodeValue> {
+#[derive(PartialEq, Eq)]
+ enum Direction {
+     Left,
+     Right,
+     Root,
+     None,
+ }
+
+ //********** Node *****************/
+struct Node<K: PartialOrd + PartialEq + Display, V> {
     key: K,
     value: V,
     color: Color,
-    left: Tree<K, V>,
-    right: Tree<K, V>,
-    parent: WeakTree<K, V>,
+    direction: Direction,
+    left: RBTree<K, V>,
+    right: RBTree<K, V>,
+    parent: RBTreeWeak<K, V>,
+}
+
+impl<K: PartialOrd + PartialEq + Display, V> Node<K, V>{
+    //constructors
+    fn new_root(key: K, value: V) -> NonNullRBTree<K, V> {
+        Rc::new(RefCell::new(Node {
+            key: key,
+            value: value,
+            color: Color::Black,
+            direction: Direction::Root,
+            left: None,
+            right: None,
+            parent: None,
+        }))
+    }
+    fn new_leaf(key: K, value: V, parent: NonNullRBTreeWeak<K, V>, direction: Direction) -> NonNullRBTree<K, V> {
+        Rc::new(RefCell::new(Node {
+            key: key,
+            value: value,
+            color: Color::Red,
+            direction: direction,
+            left: None,
+            right: None,
+            parent: Some(parent),
+        }))
+    }
+    fn new_node(key: K, value: V, parent: NonNullRBTreeWeak<K, V>, direction: Direction,
+                color: Color, left: RBTree<K, V>, right: RBTree<K, V>) -> NonNullRBTree<K, V> {
+        Rc::new(RefCell::new(Node {
+            key,
+            value,
+            color,
+            direction,
+            left,
+            right,
+            parent: Some(parent),
+        }))
+    }
+
+    fn new_insertion_leaf(key: K, value: V) -> NonNullRBTree<K, V> {
+        Rc::new(RefCell::new(Node {
+            key: key,
+            value: value,
+            color: Color::Red,
+            direction: Direction::None,
+            left: None,
+            right: None,
+            parent: None,
+        }))
+    }
+    //helpers 
+    fn is_left(&self) -> bool {
+        self.direction == Direction::Left
+    }
+    fn is_right(&self) -> bool {
+        self.direction == Direction::Right
+    }
+    fn is_root(&self) -> bool {
+        self.direction == Direction::Root
+    }
+    fn is_red(&self) -> bool {
+        self.color == Color::Red
+    }
+    fn is_black(&self) -> bool {
+        self.color == Color::Black
+    }
+    fn is_leaf(&self) -> bool {
+        self.left.is_none() && self.right.is_none()
+    }
+    fn left_branch(&self) -> RBTree<K, V> {
+        self.left.clone() //increase reference count, doesn't deep copy
+    }
+    fn right_branch(&self) -> RBTree<K, V> {
+        self.right.clone() //increase reference count, doesn't deep copy
+    }
+    /***
+     * get uncle node
+     * Returns an RBTree<K, V> either Some | None 
+     * Throws error if parent cant be upgraded, 
+     * that is if they have been dropped should not happen
+     */
+    fn get_aunt(&self) -> RBTree<K, V> {
+        if let Some(p) = self.parent.as_ref() {
+            let p = p.upgrade().expect("parent has been dropped, get_aunt() failed, RBTree");
+            let p_borrow = p.borrow();
+            // return p sibling
+            return p_borrow.get_sibling();
+        } else {
+            None
+        }
+    }    
+    /***
+     * get sibling node
+     * Returns an RBTree<K, V> either Some | None 
+     * Throws error if parent cant be upgraded, 
+     * that is if they have been dropped should not happen
+     */
+    fn get_sibling(&self) -> RBTree<K, V> {
+        if let Some(p) = self.parent.as_ref() {
+            let p = p.upgrade().expect("parent has been dropped, get_sibling() failed, RBTree");
+            let p_borrow = p.borrow();
+            let wanted_side = if p_borrow.is_left() {Direction::Right} else {Direction::Left};
+            match wanted_side {
+                Direction::Left => p_borrow.right_branch(),
+                Direction::Right => p_borrow.left_branch(),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
+}
+
+
+//********** RedBlackTree *****************/
+ pub struct RedBlackTree<K: PartialOrd + PartialEq + Display, V: Clone> {
+     root: RBTree<K, V>
  }
 
- impl <K: NodeKey, V:NodeValue> Node<K, V> {
-    pub fn key(&self) -> &K { &self.key }
-    pub fn value(&self) -> &V { &self.value }
-    pub fn is_black(&self) -> bool { self.color == Color::Black }
-    pub fn is_red(&self) -> bool { self.color == Color::Red }
-    pub fn is_left_child(&self) -> bool {
-        // return true if the node is a left child to its parent
-        if let Some(parent_weak) = self.parent.as_ref() {
-            if let Some(parent) = parent_weak.upgrade() {
-                let parent = parent.borrow();
-                if let Some(left) = &parent.left {
-                    return left.borrow().key == self.key;
-                }
-            }
-        }
-        false
-    }
-    pub fn left(&self) -> &Tree<K, V> { &self.left }
-    pub fn right(&self) -> &Tree<K, V> { &self.right }
-    pub fn parent(&self) -> &WeakTree<K, V> { &self.parent }
-    pub fn get_parent_color(&self) -> Color {
-        if let Some(parent) = &self.parent {
-            let parent = parent.upgrade().unwrap();
-            let parent = parent.borrow();
-            parent.color.clone()
-        } else {
-            Color::Black
+
+impl<K: PartialOrd + PartialEq + Display, V: Clone> RedBlackTree<K, V> {
+    pub fn new_empty() -> Self {
+        RedBlackTree {
+            root: None,
         }
     }
-    pub fn parent_is_red(&self) -> bool {
-        if let Some(parent) = &self.parent {
-            let parent = parent.upgrade().unwrap();
-            let parent = parent.borrow();
-            parent.color == Color::Red
+
+    fn new_root(&self, key: K, value: V) -> NonNullRBTree<K, V> {
+        return Node::new_root(key, value)
+    }
+
+    fn cmp_nodes(&self, node1: RBTree<K, V>, node2: RBTree<K, V>) -> bool {
+        if node1.is_none() && node2.is_none() {
+            false
+        } else if node1.is_some() && node2.is_some() {
+            let node1 = node1.expect("cmp_nodes() failed, RBTree");
+            let node2 = node2.expect("cmp_nodes() failed, RBTree");
+            let node1_borrow = node1.borrow();
+            let node2_borrow = node2.borrow();
+            node1_borrow.key == node2_borrow.key
         } else {
             false
         }
     }
-    pub fn get_uncle(&self) -> Option<(Tree<K, V>, RBOperation)> {
-        if let Some(parent) = &self.parent {
-            let parent = parent.upgrade().unwrap();
-            let parent = parent.borrow();
-            if let Some(grand_parent) = &parent.parent {
-                let grand_parent = grand_parent.upgrade().unwrap();
-                let grand_parent = grand_parent.borrow();
-                if parent.is_left_child() { // uncle is grandparent's right child
-                    let uncle = grand_parent.right.clone();
-                    Some((uncle, RBOperation::RightNode))
-                } else { // uncle is grandparent's left child
-                    let uncle = grand_parent.left.clone();
-                    Some((uncle, RBOperation::LeftNode))
-                }
+
+    pub fn is_empty_tree(&self) -> bool {
+        return self.root.is_none()
+    } 
+
+    fn get_parent(node: &NonNullRBTree<K, V>) -> Option<Rc<RefCell<Node<K, V>>>> {
+        node.borrow().parent.as_ref()?.upgrade()
+    }
+
+    fn rotate_left(&mut self, x: NonNullRBTree<K, V>) {
+        let mut y_is_root = false; 
+        let y: RBTree<K, V> = x.borrow().right_branch().take();
+        {
+            x.borrow_mut().right = y.as_ref().unwrap().borrow().left_branch().take();
+        }
+        if x.borrow().right.is_some() {
+            x.borrow().right_branch().as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x));
+        }
+        // y.p = x.p
+        let weak_y = Rc::downgrade(&y.unwrap());
+        let parent = x.borrow().parent.clone();
+        if let Some(ref parent) = parent {
+            if self.cmp_nodes(Some(x.clone()), Some(parent.clone().upgrade().expect("rotate_left() failed, RBTree")).unwrap().borrow().left_branch()) {
+                parent.clone().upgrade().expect("rotate_left() failed, RBTree").borrow_mut().left = Some(Rc::clone(&weak_y.upgrade().unwrap()));
             } else {
-                None
+                parent.clone().upgrade().expect("rotate_left() failed, RBTree").borrow_mut().right = Some(Rc::clone(&weak_y.upgrade().unwrap()));
             }
         } else {
-            None
+            self.root = Some(Rc::clone(&weak_y.upgrade().unwrap()));
+            y_is_root = true;
+        }
+        unsafe {
+            let y_mut = &mut *(weak_y.upgrade().unwrap().as_ptr());
+            y_mut.left = Some(x.clone());
+
+            if y_is_root {
+                y_mut.direction = Direction::Root;
+            }
+        }
+        unsafe {
+            let x_mut = &mut *(Rc::clone(&x).as_ptr());
+            x_mut.parent = Some(weak_y);
+            x_mut.direction = Direction::Left;
+
+            //if x has a right child, it is now a right child , it was previously a left child
+            if x_mut.right.is_some() {
+                x_mut.right_branch().as_ref().unwrap().borrow_mut().direction = Direction::Right;
+            }
+        }
+
+
+
+    }
+
+    fn rotate_right(&mut self, y: NonNullRBTree<K, V>) {
+        let mut x_is_root = false;
+        let x: RBTree<K, V> = y.borrow().left_branch().take();
+        {
+            y.borrow_mut().left = x.as_ref().unwrap().borrow().right_branch().take();
+        }
+        if y.borrow().left.is_some() {
+            y.borrow().left_branch().as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&y));
+        }
+        let weak_x = Rc::downgrade(&x.unwrap());
+        let parent = y.borrow().parent.clone();
+        if let Some(ref parent) = parent {
+            if self.cmp_nodes(Some(y.clone()), Some(parent.clone().upgrade().expect("rotate_right() failed, RBTree")).unwrap().borrow().right_branch()) {
+                parent.clone().upgrade().expect("rotate_right() failed, RBTree").borrow_mut().right = Some(Rc::clone(&weak_x.upgrade().unwrap()));
+            } else {
+                parent.clone().upgrade().expect("rotate_right() failed, RBTree").borrow_mut().left = Some(Rc::clone(&weak_x.upgrade().unwrap()));
+            }
+        } else {
+            self.root = Some(Rc::clone(&weak_x.upgrade().unwrap()));
+            x_is_root = true;
+        }
+        unsafe {
+            let x_mut = &mut *(weak_x.upgrade().unwrap().as_ptr());
+            x_mut.right = Some(y.clone());
+
+            if x_is_root {
+                x_mut.direction = Direction::Root;
+            }
+
+        }
+        unsafe {
+            let y_mut = &mut *(Rc::clone(&y).as_ptr());
+            y_mut.parent = Some(weak_x);
+            y_mut.direction = Direction::Right;
+
+            //if y has a left child, it is now a left child , it was previously a right child
+            if y_mut.left.is_some() {
+                y_mut.left_branch().as_ref().unwrap().borrow_mut().direction = Direction::Left;
+            }
         }
     }
-    pub fn swap_color(&mut self, node2: &mut Tree<K, V>) {
-        let node2 = node2.as_mut().unwrap();
-        let mut node2 = node2.borrow_mut();
-        mem::swap(&mut self.color, &mut node2.color);
-    }
 
-    // Modify methods
-    pub fn set_value(&mut self, value: V) { self.value = value; }
-    pub fn set_color(&mut self, color: Color) { self.color = color; }
-    pub fn make_black(&mut self) { self.color = Color::Black; }
-    pub fn make_red(&mut self) { self.color = Color::Red; }
-    pub fn set_left(&mut self, left: Tree<K, V>) { self.left = left; }
-    pub fn set_right(&mut self, right: Tree<K, V>) { self.right = right; }
-    pub fn set_parent(&mut self, parent: WeakTree<K, V>) { self.parent = parent; }
- }
-
- impl<K: NodeKey, V:NodeValue> PartialOrd for Node<K, V> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.key.partial_cmp(&other.key)
-    }
- }
-
- impl<K: NodeKey, V:NodeValue> Ord for Node<K, V> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.key.cmp(&other.key)
-    }
- }
-
- impl<K: NodeKey, V:NodeValue> PartialEq for Node<K, V> {
-    fn eq(&self, other: &Self) -> bool {
-        self.key == other.key
-    }
- }
- // marker trait that signals that its reflexive, symmetric, and transitive
- impl<K: NodeKey, V:NodeValue> Eq for Node<K, V> {}
-
- impl<K: NodeKey, V:NodeValue> Node<K, V> {
-     pub fn new(key: K, value: V) -> Tree<K, V> {
-         Some(Rc::new(RefCell::new(
-            Node {
-                key,
-                value,
-                color: Color::Red,
-                left: None,
-                right: None,
-                parent: None,
-            }
-         )))
-     }
-     
- }
-
-    /// ******************************** Red Black Tree ********************************
-pub struct RedBlackTree<K: NodeKey, V:NodeValue> {
-    root: Tree<K, V>,
-    size: usize,
-}
-
-impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
-    pub fn new() -> Self {
-         RedBlackTree {
-             root: None,
-             size: 0,
-         }
-    }
-
-    // ------------- Insert -------------
-    /// Inserts a new key-value pair into the red-black tree.
-    /// The tree is then fixed up to maintain red-black tree properties.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - The key of the new node to be inserted.
-    /// * `value` - The value associated with the key.
-    ///
     pub fn insert(&mut self, key: K, value: V) {
-        self.size += 1;
-        let new_node_option = Node::new(key, value);
-        let mut y_option: Tree<K, V> = None;
-        let mut x_option = self.root.clone(); 
-
-        // find the right place to insert the new node
-        while let Some(x) = x_option {
-            y_option = Some(x.clone());
-            if new_node_option.clone().unwrap().borrow().key < x.borrow().key {
-                x_option = x.borrow().left.clone();
+        //if empty tree, add root node and make black
+        if self.is_empty_tree() {
+            self.root = Some(self.new_root(key, value));
+            return;
+        }   
+        let mut y: RBTree<K, V> = None;
+        let mut x = self.root.clone(); // incrementing reference count
+        while x.is_some() {
+            y = x.clone(); // Increments rc 
+            if key < x.clone().unwrap().borrow().key {
+                x = x.unwrap().borrow().left_branch();
             } else {
-                x_option = x.borrow().right.clone();
+                x = x.unwrap().borrow().right_branch();
             }
         }
-        
-        // link the new node to the tree
-        if let Some(y) = y_option {
-            if let Some(new_node) = new_node_option.clone() {
-                let mut new_node_borrowed = new_node.borrow_mut();
-                new_node_borrowed.parent = Some(Rc::downgrade(&y));
-            }
-            let insert_right;
-            let mut y = y.borrow_mut();
-            let new_node = new_node_option.clone().unwrap();
-            if new_node.borrow().key < y.key {
-                insert_right = false;
-            } else {
-                insert_right = true;
-            }
-            if insert_right {
-                y.right = new_node_option.clone();
-            } else {
-                y.left = new_node_option.clone();
-            }
+        // insertion point found x is None, y is parent
+        let z = Node::new_insertion_leaf(key, value);
+        if y.is_none() {
+            self.root = Some(z.clone());
+            z.borrow_mut().color = Color::Black;
+            z.borrow_mut().direction = Direction::Root;
+        } else if z.borrow().key < y.clone().unwrap().borrow().key {
+            y.clone().unwrap().borrow_mut().left = Some(z.clone());
+            z.borrow_mut().parent = Some(Rc::downgrade(&y.clone().unwrap()));
+            z.borrow_mut().direction = Direction::Left;
         } else {
-            self.root = new_node_option.clone();
+            y.clone().unwrap().borrow_mut().right = Some(z.clone());
+            z.borrow_mut().parent = Some(Rc::downgrade(&y.clone().unwrap()));
+            z.borrow_mut().direction = Direction::Right;
         }
+        // z left & right should be None due to node constructor
+        // z color should be red due to node constructor
+        self.rb_tree_insert_fixup(z);
 
-        // if node doesn't have a parent, it is the root node and should be black
-        if let Some(node) = &new_node_option {
-            if node.borrow().parent.is_none() {
-                node.borrow_mut().color = Color::Black;
-            }
-        }
 
-        // fix if we dont have a grandparent
-        if let Some(node) = new_node_option {
-            if let Some(parent) = node.borrow().parent.clone() {
-                if let Some(grand_parent) = &parent.upgrade().unwrap().borrow().parent.clone() {
-                    self.fix_insert(node.clone());
+    }
+
+    
+    fn rb_tree_insert_fixup(&mut self, mut z: NonNullRBTree<K, V>) {
+        while z.borrow().parent.clone().unwrap().upgrade()
+               .expect("rb_tree_insert_fixup() failed, RBTree").borrow().color == Color::Red {
+            if z.borrow().parent.clone().unwrap().upgrade()
+                .expect("rb_tree_insert_fixup() failed, RBTree").borrow().is_left() {
+                // z's parent is a left-child, helps us when trying to find its aunt 
+                // we know z has a parent, and while z.p is a leftchild we know it has a gp
+                if z.borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().right.clone().is_some() { // if uncle is red in a safe way
+                    if z.borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().right.clone().unwrap().borrow().is_red() {
+                        // perform a color flip, we dont got any references now and can get a mutable one
+                        // z.p.color = BLACK
+                        z.borrow().parent.clone().unwrap().upgrade()
+                                  .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
+                        // y.color = BLACK
+                        z.borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().right.clone().unwrap().borrow_mut().color = Color::Black;
+                        // z.p.p.color = RED
+                        z.borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
+                        // z = z.p.p
+                        let new_z = z.borrow().parent.clone().unwrap().upgrade()
+                            .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                            .expect("error in rb-insert_fix");
+                        z = new_z;
+                    }
+                } else if z.borrow().is_right() {
+                    let newz = z.borrow().parent.clone().unwrap().upgrade()
+                                                         .expect("error in rb-insert_fix");
+                    z = newz;
+                    print!("z key: {}", z.borrow().key);
+                    self.rotate_left(z.clone());
                 }
+                //color flipzz
+                // y.p.color = BLACK
+                z.borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
+                // y.p.p.color = RED
+                z.borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
+                // right rotate z.p.p
+                self.rotate_right(z.borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").clone())
+            } else {
+                // z's parent is a right-child, helps us when trying to find its aunt 
+                // we know z has a parent, and while z.p is a rightchild we know it has a gp
+                if z.borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow().left.clone().is_some() { // if uncle is red in a safe way
+                if z.borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().left.clone().unwrap().borrow().is_red() {
+                    // perform a color flip, we dont got any references now and can get a mutable one
+                    // z.p.color = BLACK
+                    z.borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
+                    // y.color = BLACK
+                    z.borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().left.clone().unwrap().borrow_mut().color = Color::Black;
+                    // z.p.p.color = RED
+                    z.borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
+                    // z = z.p.p
+                    let new_z = z.borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix");
+                    z = new_z;
+                }
+                } else if z.borrow().is_left() {
+                let newz = z.borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix");
+                z = newz;
+                self.rotate_right(z.clone());
+                }
+                //color flipzz
+                // z.p.color = BLACK
+                z.borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
+                // z.p.p.color = RED
+                z.borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
+                // left rotate z.p.p
+                self.rotate_left(z.borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                .expect("error in rb-insert_fix").clone())
             }
-        }
-    }
-
-    // Fix up the Red-Black Tree after insertion
-    fn fix_insert(&mut self, mut k: Rc<RefCell<Node<K, V>>>) {
-        
-    }
-
-
-   // Code for left rotate
-    fn rotate_left(&mut self, x: Rc<RefCell<Node<K, V>>>) {
-        
-    }
-    
-
-    // Code for right rotate
-    fn rotate_right(&mut self, x: Rc<RefCell<Node<K, V>>>) {
-        
-    }
-    
-
-
-   // ------------- Delete -------------
-
-    // transplant(T, u, v)
-    fn transplant(&mut self, u: BareTree<K, V>, v: Tree<K, V>) {
-        unimplemented!()
-        /*
-        Pseudo code
-        1. if u.p == T.nil
-        2.   T.root = v
-        3. else if u == u.p.left
-        4.   u.p.left = v
-        5. else u.p.right = v
-        6. v.p = u.p
-         */
-    }
-
-    pub fn delete(&mut self, key: K) -> Option<V> {
-        unimplemented!()
-        /*
-        Pseudo code
-        1. y = z
-        2. y-original-color = y.color
-        3. if z.left == T.nil
-        4.   x = z.right
-        5.   RB-TRANSPLANT(T, z, z.right)
-        6. else if z.right == T.nil
-        7.   x = z.left
-        8.   RB-TRANSPLANT(T, z, z.left)
-        9. else y = TREE-MINIMUM(z.right)
-        10.  y-original-color = y.color
-        11.  x = y.right
-        12.  if y.p == z
-        13.    x.p = y
-        14.  else RB-TRANSPLANT(T, y, y.right)
-        15.    y.right = z.right
-        16.    y.right.p = y
-        17.  RB-TRANSPLANT(T, z, y)
-        18.  y.left = z.left
-        19.  y.left.p = y
-        20.  y.color = z.color
-        21. if y-original-color == BLACK
-        22.  RB-DELETE-FIXUP(T, x)
-         */ 
-    }
-
-    fn delete_fixup(&mut self, node: BareTree<K, V>) {
-        unimplemented!()
-        /*
-        Pseudo code
-        1. while x != T.root and x.color == BLACK
-        2.   if x == x.p.left
-        3.     w = x.p.right
-        4.     if w.color == RED
-        5.       w.color = BLACK
-        6.       x.p.color = RED
-        7.       LEFT-ROTATE(T, x.p)
-        8.       w = x.p.right
-        9.     if w.left.color == BLACK and w.right.color == BLACK
-        10.      w.color = RED
-        11.      x = x.p
-        12.    else if w.right.color == BLACK
-        13.      w.left.color = BLACK
-        14.      w.color = RED
-        15.      RIGHT-ROTATE(T, w)
-        16.      w = x.p.right
-        17.    w.color = x.p.color
-        18.    x.p.color = BLACK
-        19.    w.right.color = BLACK
-        20.    LEFT-ROTATE(T, x.p)
-        21.    x = T.root
-        22.  else (same as then clause with "right" and "left" exchanged)
-        23. x.color = BLACK
-        */
-    }
-
-
-
-    // ------------- Searches -------------
-    pub fn find(&self, key: K) -> Option<V> {
-        self.find_r(
-            &self.root,
-            &key,
-        )
-    }
-
-    fn find_r(&self, node: &Tree<K, V>, key: &K) -> Option<V> {
-        if let Some(n) = node {
-            let n = n.borrow();
-            match key.cmp(&n.key) {
-                Ordering::Less => self.find_r(&n.left, key),
-                Ordering::Greater => self.find_r(&n.right, key),
-                Ordering::Equal => Some(n.value.clone()),
-            }
-        } else {
-            None
+            
         }
     }
 
@@ -391,7 +450,7 @@ impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
         result
     }
 
-    fn in_order_traverse_node(node: &Tree<K, V>, result: &mut Vec<V>) {
+    fn in_order_traverse_node(node: &RBTree<K, V>, result: &mut Vec<V>) {
         if let Some(n) = node {
             if let Some(ref left) = &n.borrow().left {
                 Self::in_order_traverse_node(&Some(left.to_owned()), result);
@@ -411,7 +470,7 @@ impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
         result
     }
 
-    fn pre_order_traverse_node(node: &Tree<K, V>, result: &mut Vec<V>) {
+    fn pre_order_traverse_node(node: &RBTree<K, V>, result: &mut Vec<V>) {
         if let Some(n) = node {
             result.push(n.borrow().value.clone());
             if let Some(ref left) = &n.borrow().left {
@@ -431,7 +490,7 @@ impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
         result
     }
 
-    fn post_order_traverse_node(node: &Tree<K, V>, result: &mut Vec<V>) {
+    fn post_order_traverse_node(node: &RBTree<K, V>, result: &mut Vec<V>) {
         if let Some(n) = node {
             if let Some(ref left) = &n.borrow().left {
                 Self::post_order_traverse_node(&Some(left.to_owned()), result);
@@ -443,11 +502,10 @@ impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
         }
     }
 
-    // ------------- Debug -------------
     pub fn is_a_valid_red_black_tree(&self) -> Result<(), &'static str> {
         self.validate_tree(&self.root, None, Color::Black, 0).map(|_| ())
     }
-    
+
     fn validate_tree(
         &self,
         node: &Option<Rc<RefCell<Node<K, V>>>>,
@@ -499,9 +557,10 @@ impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
         }
     }
 
- }
+}
 
- fn tree_printer_traverse_helper<K: NodeKey, V: NodeValue>(
+//********** Debug *****************/
+fn tree_printer_traverse_helper<K: PartialOrd + PartialEq + Display + Debug, V>(
     sb: &mut String,
     padding: &str,
     pointer: &str,
@@ -511,7 +570,7 @@ impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
         let node = inner.borrow();
         sb.push_str(padding);
         sb.push_str(pointer);
-        sb.push_str(&format!("{:?}{}:{}", node.key, if node.color == Color::Red { "R" } else { "B" }, if node.is_left_child() { "L" } else { "R" }));
+        sb.push_str(&format!("{:?}{}:{}", node.key, if node.color == Color::Red { "R" } else { "B" }, if node.is_left() { "L" } else if node.is_right() { "R" } else { "Root" }));
         sb.push('\n');
 
         let padding_filler = if pointer == "└── " { "    " } else { "│   " };
@@ -525,16 +584,16 @@ impl <K: NodeKey, V:NodeValue> RedBlackTree<K, V> {
     }
 }
 
-impl<K: NodeKey, V: NodeValue> fmt::Debug for RedBlackTree<K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut sb = String::new();
-        tree_printer_traverse_helper(&mut sb, "", "", &self.root);
-        write!(f, "{}", sb)
-    }
+impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> fmt::Debug for RedBlackTree<K, V> {
+fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut sb = String::new();
+    tree_printer_traverse_helper(&mut sb, "", "", &self.root);
+    write!(f, "{}", sb)
+}
 }
 
-impl<K: NodeKey, V: NodeValue> Default for RedBlackTree<K, V> {
+impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> Default for RedBlackTree<K, V> {
     fn default() -> Self {
-        Self::new()
+        Self::new_empty()
     }
 }

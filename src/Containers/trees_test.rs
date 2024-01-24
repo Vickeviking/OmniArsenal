@@ -3,6 +3,8 @@
 #[cfg(test)]
 pub mod tree_tests {
 
+    use red_black_tree::RedBlackTree;
+
     use super::super::super::containers::trees::binary_search_tree;
     use super::super::super::containers::trees::red_black_tree;
 
@@ -246,6 +248,14 @@ pub mod tree_tests {
 
     #[test]
     fn test_red_black_tree_insert() {
+        let mut rb_tree: RedBlackTree<i32, i32> = red_black_tree::RedBlackTree::new_empty();
+        rb_tree.insert(1, 1);
+        rb_tree.insert(2, 2);
+        rb_tree.insert(3, 3);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+
     }
 
     #[test]
