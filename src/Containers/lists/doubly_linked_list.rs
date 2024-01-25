@@ -226,3 +226,96 @@ impl<T: fmt::Debug + Default> fmt::Debug for DoublyLinkedList<T> {
     }
 }
 
+
+
+// **********  TESTS ********** //
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn doubly_list_prepend_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+    
+        assert_eq!(*list.peek_front().unwrap(), 44);
+        list.prepend(45);
+        assert_eq!(*list.peek_front().unwrap(), 45);
+    }
+    
+    #[test]
+    fn doubly_list_append_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.append(42);
+        list.append(43);
+        list.append(44);
+    
+        assert_eq!(*list.peek_front().unwrap(), 42);
+    }
+    
+    #[test]
+    fn doubly_list_pop_front_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+    
+        assert_eq!(list.pop_front(), Some(44));
+        assert_eq!(list.pop_front(), Some(43));
+        assert_eq!(list.pop_front(), Some(42));
+        assert_eq!(list.pop_front(), None);
+    }
+
+    #[test]
+    fn doubly_list_pop_back_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+
+        assert_eq!(list.pop_back(), Some(42));
+        assert_eq!(list.pop_back(), Some(43));
+        assert_eq!(list.pop_back(), Some(44));
+        assert_eq!(list.pop_back(), None);
+    }
+
+    #[test]
+    fn doubly_list_clear_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+
+        assert_eq!(list.len, 2);
+        list.clear();
+        assert_eq!(list.len, 0);
+    }
+    
+    #[test]
+    fn doubly_list_peek_front_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+
+        assert_eq!(*list.peek_front().unwrap(), 44);
+    }
+
+    #[test]
+    fn doubly_list_iterator_test() {
+        let mut list = DoublyLinkedList::new_empty();
+        list.prepend(42);
+        list.prepend(43);
+        list.prepend(44);
+
+        let mut iter = list.iter();
+        assert_eq!(iter.next().unwrap(), 44);
+        assert_eq!(iter.next().unwrap(), 43);
+        assert_eq!(iter.next().unwrap(), 42);
+        assert!(iter.next().is_none());
+    }
+
+    
+}

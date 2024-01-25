@@ -16,3 +16,15 @@ where
         }
     }
 }
+
+
+
+
+// **********  TESTS ********** //
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+}

@@ -216,7 +216,6 @@ impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> RedBlackTree<K, V> {
     }
 
     fn rotate_left(&mut self, x: NonNullRBTree<K, V>) {
-        print!("rotating: {:?}\n", x.borrow().key);
         let mut x_is_root = false; 
         let y: RBTree<K, V> = x.borrow().right_branch().take();
         {
@@ -269,7 +268,6 @@ impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> RedBlackTree<K, V> {
     }
 
     fn rotate_right(&mut self, y: NonNullRBTree<K, V>) {
-        print!("rotating: {:?}\n", y.borrow().key);
         let mut y_is_root = false; 
         let x: RBTree<K, V> = y.borrow().left_branch().take();
         {
@@ -599,7 +597,7 @@ impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> RedBlackTree<K, V> {
 
 }
 
-//********** Debug *****************/
+//**** Debug ****/
 fn tree_printer_traverse_helper<K: PartialOrd + PartialEq + Display + Debug, V>(
     sb: &mut String,
     padding: &str,
@@ -637,3 +635,172 @@ impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> Default for RedBlack
         Self::new_empty()
     }
 }
+
+
+
+
+
+
+
+
+
+
+// ******************  tests *************************
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::seq::SliceRandom;
+
+    #[test]
+    fn test_red_black_tree_insert() {
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        rb_tree.insert(2, 2);
+        rb_tree.insert(1, 1);
+        rb_tree.insert(3, 3);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+
+    }
+
+    #[test]
+    fn test_red_black_tree_left_right_rotation() {
+         
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        rb_tree.insert(10, 10);
+        rb_tree.insert(4, 4);
+        rb_tree.insert(8, 8);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+        
+    }
+
+    #[test]
+    fn test_red_black_tree_right_left_rotation() {
+         
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        rb_tree.insert(5, 5);
+        rb_tree.insert(10, 10);
+        rb_tree.insert(8, 8);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree); 
+
+        // bigger tree with no null nodes
+        //                              20
+        //                      10              30
+        //                  5       15      25      35
+        //                                22  27  32  37
+
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+
+        rb_tree.insert(20, 20);
+        rb_tree.insert(10, 10);
+        rb_tree.insert(30, 30);
+        rb_tree.insert(5, 5);
+        rb_tree.insert(15, 15);
+        rb_tree.insert(25, 25);
+        rb_tree.insert(35, 35);
+        rb_tree.insert(22, 22);
+        rb_tree.insert(27, 27);
+        rb_tree.insert(32, 32);
+        rb_tree.insert(37, 37);
+
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+        
+    }
+
+    #[test]
+    fn test_red_black_tree_right_rotation() {
+        
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        rb_tree.insert(3, 3);
+        rb_tree.insert(2, 2);
+        rb_tree.insert(1, 1);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);        
+        
+    }
+
+    #[test]
+    fn test_red_black_tree_left_rotation() {
+        
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        rb_tree.insert(1, 1);
+        rb_tree.insert(2, 2);
+        rb_tree.insert(3, 3);
+        
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+        print!("{:?} ", rb_tree);
+        
+    }
+
+    #[test]
+    fn test_red_black_tree_many_rotations() {
+
+        // 1-1000
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        for i in 1..1000 {
+            rb_tree.insert(i, i);
+        }
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+
+        // 1000-1
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        for i in (1..1000).rev() {
+            rb_tree.insert(i, i);
+        }
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());        
+
+    }
+
+    #[test]
+    fn test_red_black_tree_heavy_random() {
+            
+        // lets make a list of 1000 non random numbers
+        let mut rng = rand::thread_rng();
+        let mut vec: Vec<i32> = Vec::new();
+        for i in 1..1000 {
+            vec.push(i);
+        }
+        // shuffle the list
+        vec.shuffle(&mut rng);
+
+        // insert the shuffled list into the tree
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        for i in vec {
+            rb_tree.insert(i, i);
+        }
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+
+
+
+
+    }
+
+    #[test]
+    fn test_red_black_tree_functional() {
+        // insert 1mil random numbers
+        // lets make a list of 1mil non random numbers
+        let mut rng = rand::thread_rng();
+        let mut vec: Vec<i32> = Vec::new();
+        for i in 1..100000 {
+            vec.push(i);
+        }
+        // shuffle the list
+        vec.shuffle(&mut rng);
+
+        // insert the shuffled list into the tree
+        let mut rb_tree: RedBlackTree<i32, i32> = RedBlackTree::new_empty();
+        for i in vec {
+            rb_tree.insert(i, i);
+        }
+        assert!(rb_tree.is_a_valid_red_black_tree().is_ok());
+
+    }    
+}
+

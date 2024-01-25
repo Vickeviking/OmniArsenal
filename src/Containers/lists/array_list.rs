@@ -281,3 +281,275 @@ impl<T: Default + Debug> Default for ArrayList<T> {
         Self::new()
     }
 }
+
+
+
+// **********  TESTS ********** //
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn array_list_set_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.set(0, 43), Some(42));
+        assert_eq!(arr.get(0), Some(&43));
+        assert_eq!(arr.set(2, 30), Some(44));
+        assert_eq!(arr.get(2), Some(&30));
+        assert_eq!(arr.set(3, 30), None);
+
+    }
+
+    #[test]
+    fn array_list_append_test() {
+        let mut arr = ArrayList::<i32>::new();
+        assert_eq!(arr.length, 0);
+        arr.append(42);
+        assert_eq!(arr.length, 1);
+    }
+
+    #[test]
+    fn array_list_prepend_test() {
+        let mut arr = ArrayList::<i32>::new();
+        assert_eq!(arr.length, 0);
+
+        // Prepend an element
+        arr.prepend(42);
+        assert_eq!(arr.length, 1);
+        assert_eq!(arr.get(0), Some(&42));
+        // Prepend another element
+        arr.prepend(41);
+        assert_eq!(arr.length, 2);
+        assert_eq!(arr.get(0), Some(&41));
+        assert_eq!(arr.get(1), Some(&42));
+        // Prepend another element
+        arr.prepend(40);
+        assert_eq!(arr.length, 3);
+        assert_eq!(arr.get(0), Some(&40));
+        assert_eq!(arr.get(1), Some(&41));
+        assert_eq!(arr.get(2), Some(&42));
+        // Prepend another element
+        arr.prepend(39);
+        assert_eq!(arr.length, 4);
+        assert_eq!(arr.get(0), Some(&39));
+        assert_eq!(arr.get(1), Some(&40));
+        assert_eq!(arr.get(2), Some(&41));
+        assert_eq!(arr.get(3), Some(&42));
+
+    }
+
+    #[test]
+    fn test_insert_at() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // Append 10 items
+        for i in 1..11 {
+            arr.append(i);
+        }
+
+        // Insert at index 0
+        arr.insert_at(0, 0);
+        assert_eq!(arr.len(), 11);
+        assert_eq!(arr.get(0), Some(&0)); // First item should now be 0
+        assert_eq!(arr.get(1), Some(&1)); // Second item should now be 1
+
+        // Insert at index 5
+        arr.insert_at(5, 50);
+        assert_eq!(arr.len(), 12);
+        assert_eq!(arr.get(5), Some(&50)); // The item at index 5 should be 50
+        assert_eq!(arr.get(6), Some(&5)); // The item at index 6 should be 6 (the original item at index 5)
+
+        // Insert at last index
+
+        print!("arr: {:?}", arr);
+        arr.insert_at(11, 100);
+        print!("arr: {:?}", arr);
+        assert_eq!(arr.len(), 13);
+        assert_eq!(arr.get(11), Some(&100)); // The item at index 11 should be 100
+        assert_eq!(arr.get(12), Some(&10)); // The item at index 12 should be 10
+
+        // Try to insert at an out-of-bounds index
+        arr.insert_at(100, 200);
+        assert_eq!(arr.len(), 13); // Length should not have changed
+    }
+
+    #[test]
+    fn array_list_with_capacity_test() {
+        let mut arr = ArrayList::<i32>::with_capacity(10);
+        assert_eq!(arr.length, 0);
+        arr.append(42);
+        assert_eq!(arr.length, 1);
+    }
+
+    #[test]
+    fn array_list_growth_test() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // should force a grow to 10
+        arr.append(1);
+        arr.append(2);
+        arr.append(3);
+        arr.append(4);
+        arr.append(5);
+
+        // should force a grow to 20
+        arr.append(-1);
+        arr.append(-2);
+        arr.append(-3);
+        arr.append(-4);
+        arr.append(-5);
+        arr.append( -6);
+
+        //should force a grow to 40
+        for i in 0..10 {
+            arr.append(i);
+        }
+    }
+
+    #[test]
+    fn array_list_pop_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.pop(), Some(44));
+        assert!(arr.length == 2);
+        assert_eq!(arr.pop(), Some(43));
+        assert_eq!(arr.pop(), Some(42));
+        assert!(arr.length == 0);
+        assert_eq!(arr.pop(), None);
+
+    }
+
+    #[test]
+    fn array_list_get_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.get(0), Some(&42));
+        assert_eq!(arr.get(1), Some(&43));
+        assert_eq!(arr.get(2), Some(&44));
+        assert_eq!(arr.get(3), None);
+    }
+
+    #[test]
+    fn array_list_get_mut_test() {
+        let mut arr = ArrayList::<i32>::new();
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Add assertions to test the behavior
+        assert_eq!(arr.get_mut(0), Some(&mut 42));
+        assert_eq!(arr.get_mut(1), Some(&mut 43));
+        assert_eq!(arr.get_mut(2), Some(&mut 44));
+        assert_eq!(arr.get_mut(3), None);
+
+        // try and change the values
+        *arr.get_mut(0).unwrap() = 1;
+        *arr.get_mut(1).unwrap() = 2;
+        *arr.get_mut(2).unwrap() = 3;
+
+    }
+
+    #[test]
+    fn test_len_is_empty_and_clear() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // At this point, the array list should be empty
+        assert_eq!(arr.len(), 0);
+        assert!(arr.is_empty());
+
+        // Add some elements to the array list
+        arr.append(42);
+        arr.append(43);
+        arr.append(44);
+
+        // Now the array list should have 3 elements
+        assert_eq!(arr.len(), 3);
+        assert!(!arr.is_empty());
+
+        // Clear the array list
+        arr.clear();
+
+        // The array list should be empty again
+        assert_eq!(arr.len(), 0);
+        assert!(arr.is_empty());
+    }
+
+    #[test]
+    fn array_list_pop_at_test() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // Append 100 items
+        for i in 1..101 {
+            arr.append(i);
+            assert_eq!(arr.len(), i as usize); // Assert length after each append
+        }
+
+        // Check the first item
+        assert_eq!(arr.get(0), Some(&1));
+
+        // Check the last item
+        assert_eq!(arr.get(99), Some(&100));
+
+        // Pop at index 0
+        assert_eq!(arr.pop_at(0), Some(1));
+        assert_eq!(arr.len(), 99);
+        assert_eq!(arr.get(0), Some(&2)); // First item should now be 2
+
+        // Pop at index 50
+        assert_eq!(arr.pop_at(50), Some(52)); // The item at index 50 should be 52 (since we already removed the first item)
+        assert_eq!(arr.len(), 98);
+
+        // Pop at last index
+        assert_eq!(arr.pop_at(97), Some(100)); // The last item should be 100
+        assert_eq!(arr.len(), 97);
+    }
+
+
+    #[test]
+    fn test_array_list_iteration() {
+        let mut arr = ArrayList::<i32>::new();
+
+        // Append 10 items
+        for i in 1..11 {
+            arr.append(i);
+        }
+
+        // Iterate over the array list and check the items
+        let mut index = 1;
+        for item in &arr {
+            assert_eq!(*item, index);
+            index += 1;
+        }
+
+        // Check that the iteration covered all items
+        assert_eq!(index, 11);
+
+        // Insert an item at index 5
+        arr.insert_at(5, 50);
+
+        // Iterate over the array list again and check the items
+        let expected_items = vec![1, 2, 3, 4, 5, 50, 6, 7, 8, 9, 10];
+        let mut index = 0;
+        for item in &arr {
+            assert_eq!(*item, expected_items[index]);
+            index += 1;
+        }
+
+        // Check that the iteration covered all items
+        assert_eq!(index, expected_items.len());
+    }
+}
