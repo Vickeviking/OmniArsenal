@@ -364,18 +364,28 @@ impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> RedBlackTree<K, V> {
 
     
     fn rb_tree_insert_fixup(&mut self, mut z: NonNullRBTree<K, V>) {
-        while z.borrow().parent.as_ref().unwrap().upgrade()
+        while z.borrow().parent.as_ref().is_some() && 
+              z.borrow().parent.as_ref().unwrap().upgrade()
                .expect("rb_tree_insert_fixup() failed, RBTree").borrow().color == Color::Red {
+    
             if z.borrow().parent.as_ref().unwrap().upgrade()
                 .expect("rb_tree_insert_fixup() failed, RBTree").borrow().is_left() {
                 // z's parent is a left-child, helps us when trying to find its aunt 
                 // we know z has a parent, and while z.p is a leftchild we know it has a gp
+                let mut uncle_is_red = false;
+                // researching if uncle is red in a safe way
                 if z.borrow().parent.as_ref().unwrap().upgrade()
                     .expect("error in rb-insert_fix").borrow().parent.as_ref().unwrap().upgrade()
                     .expect("error in rb-insert_fix").borrow().right.as_ref().is_some() { // if uncle is red in a safe way
                     if z.borrow().parent.as_ref().unwrap().upgrade()
                         .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
                         .expect("error in rb-insert_fix").borrow().right.clone().unwrap().borrow().is_red() {
+                        uncle_is_red = true;
+                    }
+                }
+
+
+                if uncle_is_red {
                         // perform a color flip, we dont got any references now and can get a mutable one
                         // z.p.color = BLACK
                         z.borrow().parent.clone().unwrap().upgrade()
@@ -393,77 +403,82 @@ impl<K: PartialOrd + PartialEq + Display + Debug, V: Clone> RedBlackTree<K, V> {
                             .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
                             .expect("error in rb-insert_fix");
                         z = new_z;
+                } else { //uncle is black
+                    if z.borrow().is_right() {
+
+                        let newz = z.borrow().parent.clone().unwrap().upgrade()
+                                                            .expect("error in rb-insert_fix");
+                        z = newz;
+                        self.rotate_left(z.clone());
                     }
-                } else if z.borrow().is_right() {
-                    print!("left - right rotate\n");
+                    //color flipzz
+                    let parent = z.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                    parent.borrow_mut().color = Color::Black;
 
-                    let newz = z.borrow().parent.clone().unwrap().upgrade()
-                                                         .expect("error in rb-insert_fix");
-                    z = newz;
-                    self.rotate_left(z.clone());
-                } 
-                print!("left - left rotate\n,  if only msg its true, otherwise could be left-rigth\n");
-                //color flipzz
-                let parent = z.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
-                parent.borrow_mut().color = Color::Black;
+                    let grandparent = parent.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                    grandparent.borrow_mut().color = Color::Red;
 
-                let grandparent = parent.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
-                grandparent.borrow_mut().color = Color::Red;
-
-                // right rotate z.p.p
-                self.rotate_right(z.borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").clone())
-            } else {
-                // z's parent is a right-child, helps us when trying to find its aunt 
-                // we know z has a parent, and while z.p is a rightchild we know it has a gp
-                if z.borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                .expect("error in rb-insert_fix").borrow().left.clone().is_some() { //uncle exists 
-                if z.borrow().parent.clone().unwrap().upgrade()
+                    // right rotate z.p.p
+                    self.rotate_right(z.borrow().parent.clone().unwrap().upgrade()
                     .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow().left.clone().unwrap().borrow().is_red() {
-                    // perform a color flip, we dont got any references now and can get a mutable one
-                    // z.p.color = BLACK
-                    z.borrow().parent.clone().unwrap().upgrade()
-                        .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
-                    // y.color = BLACK
-                    z.borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow().left.clone().unwrap().borrow_mut().color = Color::Black;
-                    // z.p.p.color = RED
-                    z.borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
-                    // z = z.p.p
-                    let new_z = z.borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").clone())
+                }
+            } else { // z's parent is a right-child, helps us when trying to find its aunt
+                // we know z has a parent, and while z.p is a leftchild we know it has a gp
+                let mut uncle_is_red = false;
+                // research if uncle is red
+                if z.borrow().parent.as_ref().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent.as_ref().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().left.as_ref().is_some() { // if uncle is red in a safe way
+                    if z.borrow().parent.as_ref().unwrap().upgrade()
                         .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
-                        .expect("error in rb-insert_fix");
-                    z = new_z;
+                        .expect("error in rb-insert_fix").borrow().left.clone().unwrap().borrow().is_red() {
+                        uncle_is_red = true;
+                    }
                 }
-                } else if z.borrow().is_left() {
-                    print!("right - left rotate\n");
-                    let newz = z.borrow().parent.as_ref().unwrap().upgrade()
-                        .expect("error in rb-insert_fix");
-                    z = newz;
-                    self.rotate_right(z.clone());
+                    
+                if uncle_is_red {
+                        // perform a color flip, we dont got any references now and can get a mutable one
+                        // z.p.color = BLACK
+                        z.borrow().parent.clone().unwrap().upgrade()
+                                .expect("error in rb-insert_fix").borrow_mut().color = Color::Black;
+                        // y.color = BLACK
+                        z.borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().left.clone().unwrap().borrow_mut().color = Color::Black;
+                        // z.p.p.color = RED
+                        z.borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                        .expect("error in rb-insert_fix").borrow_mut().color = Color::Red;
+                        // z = z.p.p
+                        let new_z = z.borrow().parent.clone().unwrap().upgrade()
+                            .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                            .expect("error in rb-insert_fix");
+                        z = new_z;
+                } else { //uncle is black
+                    if z.borrow().is_left() {
+
+                        let newz = z.borrow().parent.clone().unwrap().upgrade()
+                                                            .expect("error in rb-insert_fix");
+                        z = newz;
+                        self.rotate_right(z.clone());
+                    } 
+                    //color flipzz
+                    let parent = z.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                    parent.borrow_mut().color = Color::Black;
+
+                    let grandparent = parent.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
+                    grandparent.borrow_mut().color = Color::Red;
+
+                    // right rotate z.p.p
+                    self.rotate_left(z.borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").borrow().parent.clone().unwrap().upgrade()
+                    .expect("error in rb-insert_fix").clone())
                 }
-                print!("right - right rotate\n,  if only msg its true, otherwise could be right-left\n");
-
-                //color flipzz
-                let parent = z.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
-                parent.borrow_mut().color = Color::Black;
-
-                let grandparent = parent.borrow().parent.as_ref().unwrap().upgrade().expect("error in rb-insert_fix");
-                grandparent.borrow_mut().color = Color::Red;
-
-                // left rotate z.p.p
-                self.rotate_left(z.borrow().parent.as_ref().unwrap().upgrade()
-                    .expect("error in rb-insert_fix").borrow().parent
-                    .as_ref().unwrap().upgrade().expect("error in rb-insert_fix").clone());
             }
-            
         }
+        // root is black
+        self.root.as_ref().unwrap().borrow_mut().color = Color::Black;
     }
 
     //  ------------- Traverse -------------
