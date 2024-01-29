@@ -307,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_append_test() {
+    fn arr_list_append() {
         let mut arr = ArrayList::<i32>::new();
         assert_eq!(arr.length, 0);
         arr.append(42);
@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_prepend_test() {
+    fn arr_list_prepend() {
         let mut arr = ArrayList::<i32>::new();
         assert_eq!(arr.length, 0);
 
@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_with_capacity_test() {
+    fn arr_list_with_capacity() {
         let mut arr = ArrayList::<i32>::with_capacity(10);
         assert_eq!(arr.length, 0);
         arr.append(42);
@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_growth_test() {
+    fn arr_list_growth() {
         let mut arr = ArrayList::<i32>::new();
 
         // should force a grow to 10
@@ -413,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_pop_test() {
+    fn arr_list_pop() {
         let mut arr = ArrayList::<i32>::new();
         arr.append(42);
         arr.append(43);
@@ -430,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_get_test() {
+    fn arr_list_get() {
         let mut arr = ArrayList::<i32>::new();
         arr.append(42);
         arr.append(43);
@@ -444,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_get_mut_test() {
+    fn arr_list_get_mut() {
         let mut arr = ArrayList::<i32>::new();
         arr.append(42);
         arr.append(43);
@@ -464,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    fn test_len_is_empty_and_clear() {
+    fn len_is_empt_n_clear() {
         let mut arr = ArrayList::<i32>::new();
 
         // At this point, the array list should be empty
@@ -489,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn array_list_pop_at_test() {
+    fn arr_list_pop_at() {
         let mut arr = ArrayList::<i32>::new();
 
         // Append 100 items
@@ -520,7 +520,7 @@ mod tests {
 
 
     #[test]
-    fn test_array_list_iteration() {
+    fn arr_list_iteration() {
         let mut arr = ArrayList::<i32>::new();
 
         // Append 10 items

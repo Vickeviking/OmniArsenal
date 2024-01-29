@@ -380,7 +380,7 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_bst_insert() {
+    fn bst_insert() {
         /***
          *    5
          *  3   7
@@ -431,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bst_traversal() {
+    fn bst_traversal() {
         /***
          *    5
          *  3   7
@@ -457,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bst_search() {
+    fn bst_search() {
         /***
          *    5
          *  3   7
@@ -484,7 +484,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_root() {
+    fn delete_root() {
         let mut bst = BinarySearchTree::new();
         bst.insert(10);
         assert_eq!(bst.delete(10), Some(10));
@@ -492,7 +492,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_leaf() {
+    fn delete_leaf() {
         let mut bst = BinarySearchTree::new();
         bst.insert(10);
         bst.insert(5);
@@ -502,7 +502,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_node_with_one_child() {
+    fn del_n_w1_child() {
         let mut bst = BinarySearchTree::new();
         bst.insert(10);
         bst.insert(5);
@@ -513,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_node_with_two_children() {
+    fn del_n_w2_child() {
         let mut bst = BinarySearchTree::new();
         bst.insert(10);
         bst.insert(5);
@@ -529,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_node_in_large_tree() {
+    fn del_in_large_t() {
         let mut bst = BinarySearchTree::new();
         for i in 1..100 {
             bst.insert(i);
@@ -546,7 +546,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bst_balance() {
+    fn bst_balance() {
         let mut bst = BinarySearchTree::new();
         for i in 1..25 {
             bst.insert(i);

@@ -22,7 +22,7 @@ pub use containers::{
     trees::{
         self, 
         binary_search_tree::{BinarySearchTree}, 
-        red_black_tree::{RedBlackTree}
+        red_black_tree::{}
     },
     stacks::{
         self, 

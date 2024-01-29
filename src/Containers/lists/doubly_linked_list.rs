@@ -235,7 +235,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn doubly_list_prepend_test() {
+    fn dll_prepend() {
         let mut list = DoublyLinkedList::new_empty();
         list.prepend(42);
         list.prepend(43);
@@ -247,7 +247,7 @@ mod tests {
     }
     
     #[test]
-    fn doubly_list_append_test() {
+    fn dll_append() {
         let mut list = DoublyLinkedList::new_empty();
         list.append(42);
         list.append(43);
@@ -257,7 +257,7 @@ mod tests {
     }
     
     #[test]
-    fn doubly_list_pop_front_test() {
+    fn dll_pop_f() {
         let mut list = DoublyLinkedList::new_empty();
         list.prepend(42);
         list.prepend(43);
@@ -270,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn doubly_list_pop_back_test() {
+    fn dll_pop_b() {
         let mut list = DoublyLinkedList::new_empty();
         list.prepend(42);
         list.prepend(43);
@@ -283,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn doubly_list_clear_test() {
+    fn dll_clear() {
         let mut list = DoublyLinkedList::new_empty();
         list.prepend(42);
         list.prepend(43);
@@ -294,7 +294,7 @@ mod tests {
     }
     
     #[test]
-    fn doubly_list_peek_front_test() {
+    fn dll_peek() {
         let mut list = DoublyLinkedList::new_empty();
         list.prepend(42);
         list.prepend(43);
@@ -304,7 +304,7 @@ mod tests {
     }
 
     #[test]
-    fn doubly_list_iterator_test() {
+    fn dll_iterator() {
         let mut list = DoublyLinkedList::new_empty();
         list.prepend(42);
         list.prepend(43);
