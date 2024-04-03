@@ -8,3 +8,9 @@ edition = "2021"
 [dependencies]
 rand = "0.8.4"
 clippy = "0.0.302" 
+criterion = "0.5"
+
+[[bench]]
+name = "sorting_algorithms"
+harness = false
+

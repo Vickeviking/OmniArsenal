@@ -1,768 +1,341 @@
-// not mine , 
-//built by mikong , repo: https://github.com/mikong/mori/blob/master/red_black_tree/src/lib.rs
+use std::rc::{Rc, Weak};
+use std::cell::RefCell;
+use std::option::Option;
+use std::fmt::{self, Debug};
+
+use super::arena_red_black_tree::RedBlackTree;
+
+type Node<K, V> = Option<Rc<RefCell<RbNode<K, V>>>>;
+type WeakNode<K, V> = Option<Weak<RefCell<RbNode<K, V>>>>;
+
+type NonNullNode<K, V> = Rc<RefCell<RbNode<K, V>>>;
+type NonNullWeakNode<K, V> = Weak<RefCell<RbNode<K, V>>>;
+
+pub trait Key: Ord + Default + Debug + Clone {}
+impl<T: Ord + Default + Debug + Clone> Key for T {}
+pub trait Value: Default + Debug + Clone {}
+impl<T: Default + Debug + Clone> Value for T {}
 
 
-use std::usize;
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Color {
-    Red,
-    Black,
+enum Color {
+    RED, 
+    BLACK
 }
 
-#[derive(Debug)]
-pub struct Node<K, V> {
-    key: K,
-    value: V,
-    left: Option<NodeId>,
-    right: Option<NodeId>,
+impl fmt::Debug for Color {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Color::RED => write!(f, "RED"),
+            Color::BLACK => write!(f, "BLACK")
+        }
+    }
+}
+
+pub struct RbTree<K: Key, V: Value> {
+    pub root: Node<K, V>,
+    pub size: usize
+}
+
+pub struct RbNode<K: Key, V: Value> {
+    pub val: V,
+    pub key: K,
     color: Color,
-    size: usize,
+    pub left: Node<K, V>,
+    pub right: Node<K, V>,
+    pub parent: WeakNode<K, V>,
+    is_nill: bool,
+    is_left_child: bool,
 }
 
-type NodeId = usize;
 
-impl<K, V> Node<K, V> {
-    pub fn new(key: K, value: V, color: Color) -> Self {
-        Node {
-            key,
-            value,
+
+
+// --------  Some info about RB-Tree ----------------
+
+/*
+    Rules of a rb-tree
+
+    1. Every node is either red or black 
+    2. The root is black 
+    3. Every Leaf (NIL) is black (If node is none, its black)
+    4. If a node is red booth children is black 
+    5. All paths from root to leaf contains same amount of blacks
+
+*/
+
+
+impl<K: Key, V: Value> RbTree<K, V> {
+
+    // new function
+    pub fn new() -> RbTree<K, V> {
+        RbTree {
+            root: Some(RbNode::<K, V>::new_nil()),
+            size: 0
+        }
+    }
+
+    // Rotations 
+    /*  Rotation LEFT
+             X                 Y
+            / \               / \
+           α   Y     ==>     X   γ
+              / \           / \
+             β   γ         α   β
+
+    */
+
+    pub fn rotate_left(&mut self, x: Node<K, V>) -> () {
+        if let Some(mut unwrapped_x) = x {
+            // make sure x is not a nil node 
+            if unwrapped_x.borrow().is_nill {
+                return;
+            }
+        // y takes x.right
+            let mut y: Node<K, V> = unwrapped_x.borrow_mut().right.take();
+        // x.right takes y.left, if x is something y is atleast a sentinel, (unwrappable)
+            unwrapped_x.borrow_mut().right = y.as_ref().unwrap().borrow_mut().left.take();
+        // parent chain B -> X if not NIL
+            if unwrapped_x.borrow().right.is_some() && !unwrapped_x.borrow().right.as_ref().unwrap().borrow().is_nill {
+                unwrapped_x.borrow().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&unwrapped_x));
+            }
+            // y parent = x parent | y.unwrap safe while x is some 
+            y.as_ref().unwrap().borrow_mut().parent = unwrapped_x.borrow_mut().parent.take();
+            // if y.parent is nil its now the new root
+            y.as_ref().unwrap().borrow_mut().is_left_child = unwrapped_x.borrow().is_left_child;
+            let is_nil = unwrapped_x.borrow().key == self.root.as_ref().unwrap().borrow().key;
+            println!("is nill {}", is_nil);
+            if is_nil {
+                self.root = y.clone();
+            } else if unwrapped_x.borrow().is_left_child {
+                let y_parent_weak = y.as_ref().unwrap().borrow().parent.clone();
+                let y_parent_strong = y_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                let mut y_parent = y_parent_strong.borrow_mut();
+                y_parent.left = y.clone();
+            } else {
+                let y_parent_weak = y.as_ref().unwrap().borrow().parent.clone();
+                let y_parent_strong = y_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                let mut y_parent = y_parent_strong.borrow_mut();
+                y_parent.right = y.clone();
+
+            }
+            y.as_ref().unwrap().borrow_mut().left = Some(unwrapped_x);
+            y.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&y.as_ref().unwrap()));
+        }
+    }
+
+    pub fn rotate_right(&mut self, x: Node<K, V>) -> () {
+        if let Some(mut unwrapped_x) = x {
+            // make sure x is not a nil node 
+            if unwrapped_x.borrow().is_nill {
+                return;
+            }
+            // y takes x.left
+            let mut y: Node<K, V> = unwrapped_x.borrow_mut().left.take();
+            // x.left takes y.right, if x is something y is atleast a sentinel, (unwrappable)
+            unwrapped_x.borrow_mut().left = y.as_ref().unwrap().borrow_mut().right.take();
+            // parent chain B -> X if not NIL
+            if unwrapped_x.borrow().left.is_some() && !unwrapped_x.borrow().left.as_ref().unwrap().borrow().is_nill {
+                unwrapped_x.borrow().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&unwrapped_x));
+            }
+            // y parent = x parent | y.unwrap safe while x is some 
+            y.as_ref().unwrap().borrow_mut().parent = unwrapped_x.borrow_mut().parent.take();
+            // if y.parent is nil its now the new root
+            y.as_ref().unwrap().borrow_mut().is_left_child = !unwrapped_x.borrow().is_left_child;
+            let is_nil = unwrapped_x.borrow().key == self.root.as_ref().unwrap().borrow().key;
+            println!("is nill {}", is_nil);
+            if is_nil {
+                self.root = y.clone();
+            } else if !unwrapped_x.borrow().is_left_child {
+                let y_parent_weak = y.as_ref().unwrap().borrow().parent.clone();
+                let y_parent_strong = y_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                let mut y_parent = y_parent_strong.borrow_mut();
+                y_parent.right = y.clone();
+            } else {
+                let y_parent_weak = y.as_ref().unwrap().borrow().parent.clone();
+                let y_parent_strong = y_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                let mut y_parent = y_parent_strong.borrow_mut();
+                y_parent.left = y.clone();
+            }
+            y.as_ref().unwrap().borrow_mut().right = Some(unwrapped_x);
+            y.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&y.as_ref().unwrap()));
+        }
+    }
+
+
+    // recolor
+
+
+    // insertion
+    pub fn insert(&mut self, key: K, value: V) {
+        let z = RbNode::new(key, value);
+
+        // if root is nill 
+        if self.root.as_ref().unwrap().borrow().is_nill {
+            self.root = Some(Rc::clone(&z));
+            z.borrow_mut().color = Color::BLACK;
+            z.borrow_mut().left = Some(RbNode::new_nil());
+            z.borrow_mut().right = Some(RbNode::new_nil());
+            self.size += 1;
+        } else {
+            self.insert_node(Some(z));
+        }
+    }
+
+    fn insert_node(&mut self, z: Node<K, V>) {
+
+        self.size += 1;
+        let mut y = Some(RbNode::<K, V>::new_nil());
+        let mut x = self.root.clone();
+        while !Rc::clone(&x.as_ref().unwrap()).borrow().is_nill {
+            y = Some(Rc::clone(&x.unwrap()));
+        
+            if z.as_ref().unwrap().borrow().key < y.as_ref().unwrap().borrow().key {
+                // x = x.left
+                let mut new_x = y.as_ref().unwrap().borrow_mut().left.take();
+                x = new_x.take();
+                y.as_ref().unwrap().borrow_mut().left = x.clone(); // update y's left child
+            } else {
+                // x = x.right
+                let mut new_x = y.as_ref().unwrap().borrow_mut().right.take();
+                x = new_x.take();
+                y.as_ref().unwrap().borrow_mut().right = x.clone(); // update y's right child
+            }
+        }
+        // y is now parent of z
+        z.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&y.as_ref().unwrap()));
+        // if y is nill then the new node is root
+        if y.as_ref().unwrap().borrow_mut().is_nill {
+            self.root = z.clone();
+        } else if z.as_ref().unwrap().borrow().key < y.as_ref().unwrap().borrow().key  {
+            // z is left child 
+            z.as_ref().unwrap().borrow_mut().is_left_child = true;
+            y.as_ref().unwrap().borrow_mut().left = z.clone(); 
+        } else {
+            // z is right child 
+            z.as_ref().unwrap().borrow_mut().is_left_child = false;
+            y.as_ref().unwrap().borrow_mut().right = z.clone(); 
+        }
+        z.as_ref().unwrap().borrow_mut().left = Some(RbNode::new_nil());
+        z.as_ref().unwrap().borrow_mut().right = Some(RbNode::new_nil());
+        z.as_ref().unwrap().borrow_mut().color = Color::RED;
+        // TODO: Call rb insert fixup
+    } 
+
+
+    // insertion fix 
+
+
+    // delete
+
+    // deletion fix 
+
+
+    // debug 
+    fn tree_printer_traverse_helper(sb: &mut String, padding: &str, pointer: &str, node: &Option<Rc<RefCell<RbNode<K, V>>>>) {
+        if let Some(inner) = node {
+            let node = inner.borrow();
+            sb.push_str(padding);
+            sb.push_str(pointer);
+            // Check if node is NIL and print NIL, else print value and color
+            if node.is_nill {
+                sb.push_str("(NIL)");
+            } else {
+                sb.push_str(&format!("({:?},{:?})", node.val, node.color));
+            }
+            sb.push('\n');
+    
+            let padding_filler = if pointer == "└── " { "    " } else { "│   " };
+            let padding = format!("{}{}", padding, padding_filler);
+    
+            let pointer_for_right = "└── ";
+            let pointer_for_left = if node.right.is_some() { "├── " } else { "└── " };
+    
+            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_left, &node.left);
+            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_right, &node.right);
+        }
+    }
+}
+
+impl<K: Key, V: Value> RbNode<K, V> {
+    // sentinel node 
+    pub fn new_nil() -> NonNullNode<K, V> {
+        Rc::new(RefCell::new(RbNode {
+            val: Default::default(),
+            key: Default::default(),
+            color: Color::BLACK,
             left: None,
             right: None,
-            color,
-            size: 1,
+            parent: None,
+            is_nill: true,
+            is_left_child: false
+        }))
+    }
+    // node with key and Value 
+    pub fn new(key: K, val: V) -> NonNullNode<K, V> {
+        Rc::new(RefCell::new(RbNode {
+            val: val,
+            key: key,
+            color: Color::RED,
+            left: None,
+            right: None,
+            parent: None,
+            is_nill: false,
+            is_left_child: false
+        }))
+    }
+
+    pub fn new_extended(key: K, val: V, color: Color, left: Node<K, V>, right: Node<K, V>, parent: WeakNode<K, V>, is_nill: bool, is_left_child: bool) -> NonNullNode<K, V> {
+        Rc::new(RefCell::new(RbNode {
+            val: val,
+            key: key,
+            color: color,
+            left: left,
+            right: right,
+            parent: parent,
+            is_nill: is_nill,
+            is_left_child: is_left_child
+        }))
+    }
+
+    pub fn print_information(&self) {
+        // print information about the node its parent and children
+        let mut parent_value: V = Default::default();
+        if let Some(parent_weak) = &self.parent {
+            if let Some(parent) = parent_weak.upgrade() {
+                parent_value = parent.borrow().val.clone();
+            }
         }
+
+        let mut left_value: V = Default::default();
+        if let Some(left) = &self.left {
+            left_value = left.borrow().val.clone();
+        }
+
+        let mut right_value: V = Default::default();
+        if let Some(right) = &self.right {
+            right_value = right.borrow().val.clone();
+        }
+
+        println!("Key: {:?}, Value: {:?}, Color: {:?}, Parent: {:?}, Left: {:?}, Right: {:?}", self.key, self.val, self.color, parent_value, left_value, right_value);
+
+    }
+
+    
+}
+
+impl<K: Key, V: Value> fmt::Debug for RbTree<K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sb = String::new();
+        Self::tree_printer_traverse_helper(&mut sb, "", "", &self.root);
+        write!(f, "{}", sb)
     }
 }
 
-pub struct TreeIter<'a, K: 'a, V: 'a> {
-    stack: Vec<NodeId>,
-    tree: &'a RedBlackTree<K, V>,
-}
-
-impl<'a, K: 'a, V: 'a> TreeIter<'a, K, V> {
-    fn push_left_edge(&mut self, mut node: Option<NodeId>) {
-        while let Some(node_id) = node {
-            self.stack.push(node_id);
-            node = self.tree.nodes[node_id].left;
-        }
-    }
-}
-
-impl<'a, K, V> Iterator for TreeIter<'a, K, V> {
-    type Item = (&'a K, &'a V);
-
-    fn next(&mut self) -> Option<(&'a K, &'a V)> {
-        let node_id = match self.stack.pop() {
-            Some(n) => n,
-            None => return None,
-        };
-
-        self.push_left_edge(self.tree.nodes[node_id].right);
-
-        let node = &self.tree.nodes[node_id];
-        Some((&node.key, &node.value))
-    }
-}
-
-pub struct Keys<'a, K: 'a, V: 'a> {
-    inner: TreeIter<'a, K, V>,
-}
-
-impl<'a, K, V> Iterator for Keys<'a, K, V> {
-    type Item = &'a K;
-
-    fn next(&mut self) -> Option<&'a K> {
-        self.inner.next().map(|(k, _)| k)
-    }
-}
-
-#[derive(Debug)]
-pub struct RedBlackTree<K, V> {
-    root: Option<NodeId>,
-    nodes: Vec<Node<K, V>>,
-}
-
-impl<K, V> RedBlackTree<K, V>
-    where K: PartialOrd + Clone,
-          V: Clone,
-{
-    pub fn new() -> Self {
-        RedBlackTree {
-            root: None,
-            nodes: Vec::new(),
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.root.is_none()
-    }
-
-    pub fn size(&self) -> usize {
-        self.size_of(self.root)
-    }
-
-    fn size_of(&self, node: Option<NodeId>) -> usize {
-        node.map_or(0, |id| self.nodes[id].size)
-    }
-
-    fn update_size_for(&mut self, parent: NodeId) {
-        let left_size = self.size_of(self.nodes[parent].left);
-        let right_size = self.size_of(self.nodes[parent].right);
-        self.nodes[parent].size = 1 + left_size + right_size;
-    }
-
-    fn new_node(&mut self, key: K, value: V, color: Color) -> NodeId {
-        let next_index = self.nodes.len();
-
-        self.nodes.push(Node::new(key, value, color));
-
-        next_index
-    }
-
-    pub fn get(&self, key: &K) -> Option<&V> {
-        let mut x = &self.root;
-        while let Some(node_id) = x {
-            let node = &self.nodes[*node_id];
-            if *key < node.key {
-                x = &node.left;
-            } else if *key > node.key {
-                x = &node.right;
-            } else {
-                return Some(&node.value);
-            }
-        }
-        None
-    }
-
-    pub fn contains(&self, key: &K) -> bool {
-        self.get(key).is_some()
-    }
-
-    pub fn insert(&mut self, key: K, value: V) {
-        self.root = self.rinsert(self.root, key, value);
-
-        if let Some(root_id) = self.root {
-            self.nodes[root_id].color = Color::Black;
-        }
-    }
-
-    fn rinsert(&mut self, node: Option<NodeId>, key: K, value: V) -> Option<NodeId> {
-        if let Some(mut node_id) = node {
-            if key < self.nodes[node_id].key {
-                self.nodes[node_id].left = self.rinsert(self.nodes[node_id].left, key, value);
-            } else if key > self.nodes[node_id].key {
-                self.nodes[node_id].right = self.rinsert(self.nodes[node_id].right, key, value);
-            } else {
-                self.nodes[node_id].value = value;
-            }
-
-            // Fix any right-leaning links
-            let right_is_red = self.is_red(self.nodes[node_id].right);
-            let left_is_red = self.is_red(self.nodes[node_id].left);
-            if right_is_red && !left_is_red {
-                node_id = self.rotate_left(node_id);
-            }
-            if self.is_red(self.nodes[node_id].left) {
-                let left_id = self.nodes[node_id].left.unwrap();
-                if self.is_red(self.nodes[left_id].left) {
-                    node_id = self.rotate_right(node_id);
-                }
-            }
-            let left_is_red = self.is_red(self.nodes[node_id].left);
-            let right_is_red = self.is_red(self.nodes[node_id].right);
-            if left_is_red && right_is_red {
-                self.flip_colors(node_id);
-            }
-
-            self.update_size_for(node_id);
-
-            return Some(node_id);
-        }
-
-        let node_id = self.new_node(key, value, Color::Red);
-        Some(node_id)
-    }
-
-    pub fn delete_min(&mut self) {
-        if let Some(root_id) = self.root {
-            let left_is_red = self.is_red(self.nodes[root_id].left);
-            let right_is_red = self.is_red(self.nodes[root_id].right);
-            if !left_is_red && !right_is_red {
-                self.nodes[root_id].color = Color::Red;
-            }
-
-            self.root = self.rdelete_min(root_id);
-            if let Some(root_id) = self.root {
-                self.nodes[root_id].color = Color::Black;
-            }
-        }
-    }
-
-    fn rdelete_min(&mut self, mut node_id: NodeId) -> Option<NodeId> {
-        if self.nodes[node_id].left.is_none() {
-            return None;
-        }
-
-        if !self.is_red(self.nodes[node_id].left) {
-            let left_id = self.nodes[node_id].left.unwrap();
-            if !self.is_red(self.nodes[left_id].left) {
-                node_id = self.move_red_left(node_id);
-            }
-        }
-
-        // Note: left can't be None, even with move_red_left operation
-        let left_id = self.nodes[node_id].left.unwrap();
-        self.nodes[node_id].left = self.rdelete_min(left_id);
-
-        Some(self.balance(node_id))
-    }
-
-    pub fn delete(&mut self, key: &K) {
-        if !self.contains(key) {
-            return;
-        }
-
-        if let Some(root_id) = self.root {
-            let left_is_red = self.is_red(self.nodes[root_id].left);
-            let right_is_red = self.is_red(self.nodes[root_id].right);
-            if !left_is_red && !right_is_red {
-                self.nodes[root_id].color = Color::Red;
-            }
-
-            self.root = self.rdelete(root_id, key);
-            if let Some(root_id) = self.root {
-                self.nodes[root_id].color = Color::Black;
-            }
-        }
-    }
-
-    fn rdelete(&mut self, mut node_id: NodeId, key: &K) -> Option<NodeId> {
-        if *key < self.nodes[node_id].key {
-            if !self.is_red(self.nodes[node_id].left) {
-                let left_id = self.nodes[node_id].left.unwrap();
-                if !self.is_red(self.nodes[left_id].left) {
-                    node_id = self.move_red_left(node_id);
-                }
-            }
-            let left_id = self.nodes[node_id].left.unwrap();
-            self.nodes[node_id].left = self.rdelete(left_id, key);
-        } else {
-            if self.is_red(self.nodes[node_id].left) {
-                node_id = self.rotate_right(node_id);
-            }
-            if *key == self.nodes[node_id].key && self.nodes[node_id].right.is_none() {
-                return None;
-            }
-            
-            if !self.is_red(self.nodes[node_id].right) {
-                let right_id = self.nodes[node_id].right.unwrap();
-                if !self.is_red(self.nodes[right_id].left) {
-                    node_id = self.move_red_right(node_id);
-                }
-            }
-            if *key == self.nodes[node_id].key {
-                let right_id = self.nodes[node_id].right.unwrap();
-                let x_id = self.rmin(right_id);
-                self.nodes[node_id].key = self.nodes[x_id].key.clone();
-                self.nodes[node_id].value = self.nodes[x_id].value.clone();
-                self.nodes[node_id].right = self.rdelete_min(right_id);
-            } else {
-                let right_id = self.nodes[node_id].right.unwrap();
-                self.nodes[node_id].right = self.rdelete(right_id, key);
-            }
-        }
-        Some(self.balance(node_id))
-    }
-
-
-    // Red-black tree helper methods
-
-    fn rotate_left(&mut self, parent: NodeId) -> NodeId {
-        let old = parent;
-        let new = self.nodes[old].right.unwrap();
-
-        self.nodes[old].right = self.nodes[new].left;
-        self.nodes[new].left = Some(old);
-        self.nodes[new].color = self.nodes[old].color;
-        self.nodes[old].color = Color::Red;
-        self.nodes[new].size = self.nodes[old].size;
-        self.update_size_for(old);
-
-        new
-    }
-
-    fn rotate_right(&mut self, parent: NodeId) -> NodeId {
-        let old = parent;
-        let new = self.nodes[old].left.unwrap();
-
-        self.nodes[old].left = self.nodes[new].right;
-        self.nodes[new].right = Some(old);
-        self.nodes[new].color = self.nodes[old].color;
-        self.nodes[old].color = Color::Red;
-        self.nodes[new].size = self.nodes[old].size;
-        self.update_size_for(old);
-
-        new
-    }
-
-    fn flip_colors(&mut self, node_id: NodeId) {
-        let left = self.nodes[node_id].left.unwrap();
-        let right = self.nodes[node_id].right.unwrap();
-        match self.nodes[node_id].color {
-            Color::Red => {
-                self.nodes[node_id].color = Color::Black;
-                self.nodes[left].color = Color::Red;
-                self.nodes[right].color = Color::Red;
-            },
-            Color::Black => {
-                self.nodes[node_id].color = Color::Red;
-                self.nodes[left].color = Color::Black;
-                self.nodes[right].color = Color::Black;
-            },
-        };
-    }
-
-    fn is_red(&self, node: Option<NodeId>) -> bool {
-        match node {
-            Some(node_id) => self.nodes[node_id].color == Color::Red,
-            None => false,
-        }
-    }
-
-    fn move_red_left(&mut self, mut node_id: NodeId) -> NodeId {
-        self.flip_colors(node_id);
-
-        if let Some(right_id) = self.nodes[node_id].right {
-            if self.is_red(self.nodes[right_id].left) {
-                self.nodes[node_id].right = Some(self.rotate_right(right_id));
-                node_id = self.rotate_left(node_id);
-                self.flip_colors(node_id);
-            }
-        }
-
-        node_id
-    }
-
-    fn move_red_right(&mut self, mut node_id: NodeId) -> NodeId {
-        self.flip_colors(node_id);
-
-        if let Some(left_id) = self.nodes[node_id].left {
-            if self.is_red(self.nodes[left_id].left) {
-                node_id = self.rotate_right(node_id);
-                self.flip_colors(node_id);
-            }
-        }
-
-        node_id
-    }
-
-    fn balance(&mut self, mut node_id: NodeId) -> NodeId {
-        if self.is_red(self.nodes[node_id].right) {
-            node_id = self.rotate_left(node_id);
-        }
-
-        if self.is_red(self.nodes[node_id].left) {
-            let left_id = self.nodes[node_id].left.unwrap();
-            if self.is_red(self.nodes[left_id].left) {
-                node_id = self.rotate_right(node_id);
-            }
-        }
-
-        let left_is_red = self.is_red(self.nodes[node_id].left);
-        let right_is_red = self.is_red(self.nodes[node_id].right);
-        if left_is_red && right_is_red {
-            self.flip_colors(node_id);
-        }
-
-        self.update_size_for(node_id);
-        node_id
-    }
-
-
-    // Ordered symbol table methods
-
-    pub fn min(&self) -> Option<&K> {
-        if let Some(root_id) = self.root {
-            let min_id = self.rmin(root_id);
-            return Some(&self.nodes[min_id].key);
-        }
-        None
-    }
-
-    fn rmin(&self, node_id: NodeId) -> NodeId {
-        match self.nodes[node_id].left {
-            Some(left_id) => self.rmin(left_id),
-            None => node_id,
-        }
-    }
-
-    pub fn max(&self) -> Option<&K> {
-        if let Some(root_id) = self.root {
-            let max_id = self.rmax(root_id);
-            return Some(&self.nodes[max_id].key);
-        }
-        None
-    }
-
-    fn rmax(&self, node_id: NodeId) -> NodeId {
-        match self.nodes[node_id].right {
-            Some(right_id) => self.rmax(right_id),
-            None => node_id,
-        }
-    }
-
-    // Iterator
-    pub fn iter(&self) -> TreeIter<K, V> {
-        let mut iter = TreeIter {
-            stack: Vec::new(),
-            tree: self,
-        };
-        iter.push_left_edge(self.root);
-        iter
-    }
-
-    pub fn keys(&self) -> Keys<K, V> {
-        Keys { inner: self.iter() }
-    }
-
-    pub fn is_valid(&self) -> bool {
-        if let Some(root) = self.root {
-            let (_, is_valid) = self.validate_node(root);
-            is_valid
-        } else {
-            true
-        }
-    }
-
-    fn validate_node(&self, node_id: NodeId) -> (usize, bool) {
-        let node = &self.nodes[node_id];
-        let mut black_count = 0;
-        if node.color == Color::Black {
-            black_count = 1;
-        }
-
-        let mut left_black_count = 0;
-        let mut right_black_count = 0;
-        let mut is_valid = true;
-
-        if let Some(left) = node.left {
-            let (count, valid) = self.validate_node(left);
-            left_black_count = count;
-            if !valid || node.color == Color::Red && self.nodes[left].color == Color::Red {
-                is_valid = false;
-            }
-        }
-
-        if let Some(right) = node.right {
-            let (count, valid) = self.validate_node(right);
-            right_black_count = count;
-            if !valid || node.color == Color::Red && self.nodes[right].color == Color::Red {
-                is_valid = false;
-            }
-        }
-
-        if left_black_count != right_black_count {
-            is_valid = false;
-        }
-
-        (black_count + left_black_count, is_valid)
-    }
-}
+// testing area 
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    //      E
-    //     / \
-    //    C   R
-    //   /   / \
-    //  A   H   S
-    fn populate_tree(tree: &mut RedBlackTree<String, usize>) {
-        tree.insert("S".to_string(), 0);
-        tree.insert("E".to_string(), 12);
-        tree.insert("A".to_string(), 8);
-        tree.insert("R".to_string(), 3);
-        tree.insert("C".to_string(), 4);
-        tree.insert("H".to_string(), 5);
-    }
 
-    #[test]
-    fn create_node() {
-        let n = Node::new(1, "a".to_string(), Color::Red);
-        assert_eq!(n.left.is_none(), true);
-        assert_eq!(n.right.is_none(), true);
-    }
-
-    #[test]
-    fn get_value() {
-        let mut tree = RedBlackTree::new();
-
-        // empty tree case
-        let s = "S".to_string();
-        assert_eq!(tree.contains(&s), false);
-        assert_eq!(tree.get(&s), None);
-
-        populate_tree(&mut tree);
-
-        assert_eq!(tree.contains(&s), true);
-        assert_eq!(tree.get(&s), Some(&0));
-        assert_eq!(tree.get(&"H".to_string()), Some(&5));
-        assert_eq!(tree.contains(&"Z".to_string()), false);
-    }
-
-    #[test]
-    fn put() {
-        let mut tree = RedBlackTree::new();
-
-        tree.insert("E".to_string(), 12);
-
-        // check root is black
-        let root_id = tree.root.unwrap();
-        let root = &tree.nodes[root_id];
-        assert_eq!(root.color, Color::Black);
-
-        //   E           S
-        //    \   ->    /
-        //     S       E
-        tree.insert("S".to_string(), 0);
-
-        // check left-rotate of right-leaning link
-        let root_id = tree.root.unwrap();
-        let root = &tree.nodes[root_id];
-        let left_id = root.left.unwrap();
-        let left = &tree.nodes[left_id];
-        assert_eq!(left.key, "E".to_string());
-        assert_eq!(left.color, Color::Red);
-
-        //      S
-        //     /          E
-        //    E    ->    / \
-        //   /          A   S
-        //  A
-        tree.insert("A".to_string(), 8);
-
-        // check right-rotate then color-flip
-        let root_id = tree.root.unwrap();
-        let root = &tree.nodes[root_id];
-        assert_eq!(root.key, "E".to_string());
-        assert_eq!(root.color, Color::Black);
-
-        let left_id = root.left.unwrap();
-        let left = &tree.nodes[left_id];
-        assert_eq!(left.key, "A".to_string());
-        assert_eq!(left.color, Color::Black);
-
-        let right_id = root.right.unwrap();
-        let right = &tree.nodes[right_id];
-        assert_eq!(right.key, "S".to_string());
-        assert_eq!(right.color, Color::Black);
-    }
-
-    #[test]
-    fn delete_min() {
-        // Case: Empty RBT
-        let mut tree0: RedBlackTree<String, usize> = RedBlackTree::new();
-        tree0.delete_min();
-
-        // Case: Delete from 2-node and 1-node tree
-        let mut tree2 = RedBlackTree::new();
-
-        //    S
-        //   /
-        //  E
-        //
-        let e = "E".to_string();
-        let s = "S".to_string();
-        tree2.insert(s.clone(), 1);
-        tree2.insert(e.clone(), 2);
-        tree2.delete_min();
-        assert_eq!(tree2.get(&e), None);
-        assert_eq!(tree2.min(), Some(&s));
-        let root_id = tree2.root.unwrap();
-        let root = &tree2.nodes[root_id];
-        assert_eq!(root.color, Color::Black);
-        tree2.delete_min();
-        assert_eq!(tree2.root, None);
-
-        // Case: balanced 7-node tree with black links
-        let mut tree7 = RedBlackTree::new();
-
-        //        L
-        //      /   \
-        //     H     T
-        //    / \   / \
-        //   D   J P   X
-        //
-        tree7.insert("L".to_string(), 1);
-        tree7.insert("H".to_string(), 2);
-        tree7.insert("T".to_string(), 3);
-        tree7.insert("P".to_string(), 4);
-        tree7.insert("X".to_string(), 5);
-        tree7.insert("D".to_string(), 6);
-        tree7.insert("J".to_string(), 7);
-        tree7.delete_min();
-
-        //        T
-        //      //  \
-        //      L    X
-        //     / \
-        //    J   P     Legend:  / - black link
-        //   //                 // - red link
-        //   H
-        //
-        let root_id = tree7.root.unwrap();
-        let root = &tree7.nodes[root_id];
-        assert_eq!(root.key, "T".to_string());
-        let left_id = root.left.unwrap();
-        let left = &tree7.nodes[left_id];
-        assert_eq!(left.key, "L".to_string());
-        assert_eq!(left.color, Color::Red);
-        let ll_id = left.left.unwrap();
-        let ll = &tree7.nodes[ll_id];
-        assert_eq!(ll.key, "J".to_string());
-        assert_eq!(ll.color, Color::Black);
-        let lr_id = left.right.unwrap();
-        let lr = &tree7.nodes[lr_id];
-        assert_eq!(lr.key, "P".to_string());
-        assert_eq!(lr.color, Color::Black);
-        let lll_id = ll.left.unwrap();
-        let lll = &tree7.nodes[lll_id];
-        assert_eq!(lll.key, "H".to_string());
-        assert_eq!(lll.color, Color::Red);
-    }
-
-    #[test]
-    fn delete() {
-        let s = "S".to_string();
-        let e = "E".to_string();
-
-        // Case: Empty RBT
-        let mut tree0: RedBlackTree<String, usize> = RedBlackTree::new();
-        tree0.delete(&s);
-
-        // Case: Delete from 2-node and 1-node tree
-        let mut tree2 = RedBlackTree::new();
-
-        //    S
-        //   /
-        //  E
-        //
-        tree2.insert("S".to_string(), 1);
-        tree2.insert("E".to_string(), 2);
-        tree2.delete(&e);
-        assert_eq!(tree2.get(&e), None);
-        let root_id = tree2.root.unwrap();
-        let root = &tree2.nodes[root_id];
-        assert_eq!(root.color, Color::Black);
-        tree2.delete(&s);
-        assert_eq!(tree2.root, None);
-
-        // Case: 4-node tree
-        let mut tree4 = RedBlackTree::new();
-
-        //    E           R
-        //   / \         / \
-        //  A   S   ->  A   S
-        //     //
-        //     R
-        //
-        tree4.insert("S".to_string(), 1);
-        tree4.insert("E".to_string(), 2);
-        tree4.insert("A".to_string(), 3);
-        tree4.insert("R".to_string(), 4);
-        tree4.delete(&e);
-        assert_eq!(tree4.get(&e), None);
-        let root_id = tree4.root.unwrap();
-        let root = &tree4.nodes[root_id];
-        assert_eq!(root.key, "R".to_string());
-        let right_id = root.right.unwrap();
-        let right = &tree4.nodes[right_id];
-        assert_eq!(right.key, "S".to_string());
-        assert_eq!(right.color, Color::Black);
-    }
-
-    #[test]
-    fn tree_size() {
-        let mut tree = RedBlackTree::new();
-
-        assert_eq!(tree.is_empty(), true);
-        assert_eq!(tree.size(), 0);
-
-        populate_tree(&mut tree);
-
-        assert_eq!(tree.is_empty(), false);
-        assert_eq!(tree.size(), 6);
-    }
-
-    #[test]
-    fn min() {
-        let mut tree = RedBlackTree::new();
-
-        assert_eq!(tree.min(), None);
-
-        populate_tree(&mut tree);
-
-        assert_eq!(tree.min(), Some(&"A".to_string()));
-    }
-
-    #[test]
-    fn max() {
-        let mut tree = RedBlackTree::new();
-
-        assert_eq!(tree.max(), None);
-
-        populate_tree(&mut tree);
-
-        assert_eq!(tree.max(), Some(&"S".to_string()));
-    }
-
-    #[test]
-    fn iterator() {
-        let mut tree = RedBlackTree::new();
-        populate_tree(&mut tree);
-        let mut tree_iter = tree.iter();
-
-        assert_eq!(tree_iter.next(), Some((&"A".to_string(), &8)));
-        assert_eq!(tree_iter.next(), Some((&"C".to_string(), &4)));
-        assert_eq!(tree_iter.next(), Some((&"E".to_string(), &12)));
-        assert_eq!(tree_iter.next(), Some((&"H".to_string(), &5)));
-        assert_eq!(tree_iter.next(), Some((&"R".to_string(), &3)));
-        assert_eq!(tree_iter.next(), Some((&"S".to_string(), &0)));
-        assert_eq!(tree_iter.next(), None);
-    }
-
-    #[test]
-    fn keys() {
-        let mut tree = RedBlackTree::new();
-        populate_tree(&mut tree);
-        let keys: Vec<&String> = tree.keys().collect();
-
-        assert_eq!(keys, vec![&"A".to_string(), &"C".to_string(),
-            &"E".to_string(), &"H".to_string(), &"R".to_string(),
-            &"S".to_string()]);
-    }
-
-    #[test]
-    fn heavy_test() {
-        // insert 1000 numbers
-        let mut tree = RedBlackTree::new();
-        for i in 0..10000 {
-            tree.insert(i, i);
-        }
-
-        // delete 500 numbers
-        for i in 0..500 {
-            tree.delete(&i);
-        }
-
-        // check if tree is valid
-        assert_eq!(tree.is_valid(), true);
-
-        // check that values are correct of the remaining 9500 numbers
-        for i in 500..10000 {
-            assert_eq!(tree.get(&i), Some(&i));
-        }
-    }
 }
