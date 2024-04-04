@@ -9,13 +9,7 @@
     -ArrayList
     -SinglyLinkedList
     -DoublyLinkedList
- ### Other
-    -stack
-    -queue
-
-
 ## Algorithms
-
  ### Sort
     - bubbleSort
     - heapSort
