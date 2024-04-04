@@ -2,7 +2,6 @@
 pub mod containers {
     pub mod lists;
     pub mod trees;
-    pub mod queues;
 }
 
 // *** Algorithms Modules ***
@@ -20,15 +19,9 @@ pub use containers::{
     },
     trees::{
         self, 
-        binary_search_tree::{BinarySearchTree}, 
-        arena_red_black_tree::{},
+        binary_search_tree::BinarySearchTree, 
+        arena_red_black_tree,
         red_black_tree
-    },
-    queues::{
-        self, 
-        queue::{Queue}, 
-        priority_queue::{PriorityQueue},
-        stack::Stack
     }
 
 };

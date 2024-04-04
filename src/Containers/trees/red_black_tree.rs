@@ -17,6 +17,7 @@ pub trait Value: Default + Debug + Clone {}
 impl<T: Default + Debug + Clone> Value for T {}
 
 
+#[derive(Clone)]
 enum Color {
     RED, 
     BLACK
@@ -89,6 +90,8 @@ impl<K: Key, V: Value> RbTree<K, V> {
             // make sure x is not a nil node 
             if unwrapped_x.borrow().is_nill {
                 return;
+            } else if unwrapped_x.borrow().right.as_ref().unwrap().borrow().is_nill {
+                return;
             }
         // y takes x.right
             let mut y: Node<K, V> = unwrapped_x.borrow_mut().right.take();
@@ -97,13 +100,13 @@ impl<K: Key, V: Value> RbTree<K, V> {
         // parent chain B -> X if not NIL
             if unwrapped_x.borrow().right.is_some() && !unwrapped_x.borrow().right.as_ref().unwrap().borrow().is_nill {
                 unwrapped_x.borrow().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&unwrapped_x));
+                unwrapped_x.borrow().right.as_ref().unwrap().borrow_mut().is_left_child = false;
             }
             // y parent = x parent | y.unwrap safe while x is some 
             y.as_ref().unwrap().borrow_mut().parent = unwrapped_x.borrow_mut().parent.take();
             // if y.parent is nil its now the new root
             y.as_ref().unwrap().borrow_mut().is_left_child = unwrapped_x.borrow().is_left_child;
             let is_nil = unwrapped_x.borrow().key == self.root.as_ref().unwrap().borrow().key;
-            println!("is nill {}", is_nil);
             if is_nil {
                 self.root = y.clone();
             } else if unwrapped_x.borrow().is_left_child {
@@ -116,33 +119,43 @@ impl<K: Key, V: Value> RbTree<K, V> {
                 let y_parent_strong = y_parent_weak.as_ref().unwrap().upgrade().unwrap();
                 let mut y_parent = y_parent_strong.borrow_mut();
                 y_parent.right = y.clone();
-
             }
+            unwrapped_x.borrow_mut().is_left_child = true;
             y.as_ref().unwrap().borrow_mut().left = Some(unwrapped_x);
             y.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&y.as_ref().unwrap()));
         }
     }
 
+    /*  Rotation RIGHT
+             X                 Y
+            / \               / \
+           Y   γ     ==>     α   X
+          / \                   / \
+         α  β                  β   γ
+
+    */
     pub fn rotate_right(&mut self, x: Node<K, V>) -> () {
-        if let Some(mut unwrapped_x) = x {
+        if let Some(unwrapped_x) = x {
             // make sure x is not a nil node 
             if unwrapped_x.borrow().is_nill {
                 return;
+            } else if unwrapped_x.borrow().left.as_ref().unwrap().borrow().is_nill {
+                return;
             }
             // y takes x.left
-            let mut y: Node<K, V> = unwrapped_x.borrow_mut().left.take();
+            let y: Node<K, V> = unwrapped_x.borrow_mut().left.take();
             // x.left takes y.right, if x is something y is atleast a sentinel, (unwrappable)
             unwrapped_x.borrow_mut().left = y.as_ref().unwrap().borrow_mut().right.take();
             // parent chain B -> X if not NIL
             if unwrapped_x.borrow().left.is_some() && !unwrapped_x.borrow().left.as_ref().unwrap().borrow().is_nill {
                 unwrapped_x.borrow().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&unwrapped_x));
+                unwrapped_x.borrow().left.as_ref().unwrap().borrow_mut().is_left_child = true;
             }
             // y parent = x parent | y.unwrap safe while x is some 
             y.as_ref().unwrap().borrow_mut().parent = unwrapped_x.borrow_mut().parent.take();
             // if y.parent is nil its now the new root
-            y.as_ref().unwrap().borrow_mut().is_left_child = !unwrapped_x.borrow().is_left_child;
+            y.as_ref().unwrap().borrow_mut().is_left_child = unwrapped_x.borrow().is_left_child;
             let is_nil = unwrapped_x.borrow().key == self.root.as_ref().unwrap().borrow().key;
-            println!("is nill {}", is_nil);
             if is_nil {
                 self.root = y.clone();
             } else if !unwrapped_x.borrow().is_left_child {
@@ -156,6 +169,7 @@ impl<K: Key, V: Value> RbTree<K, V> {
                 let mut y_parent = y_parent_strong.borrow_mut();
                 y_parent.left = y.clone();
             }
+            unwrapped_x.borrow_mut().is_left_child = false;
             y.as_ref().unwrap().borrow_mut().right = Some(unwrapped_x);
             y.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&y.as_ref().unwrap()));
         }
@@ -254,6 +268,52 @@ impl<K: Key, V: Value> RbTree<K, V> {
             Self::tree_printer_traverse_helper(sb, &padding, pointer_for_right, &node.right);
         }
     }
+
+    // ###########     traversals       ################
+
+
+
+    // Inorder Traversal
+    pub fn inorder_key_traversal(&self) -> Vec<K> {
+        let mut result: Vec<(K,V)> = Vec::new();
+        Self::inorder_traversal_helper(&self.root, &mut result);
+        // extract into vec of keys
+        let mut key_result: Vec<K> = Vec::new();
+        for (key, _) in result {
+            key_result.push(key);
+        }
+        key_result
+    }
+    pub fn inorder_val_traversal(&self) -> Vec<V> {
+        let mut result: Vec<(K, V)> = Vec::new();
+        Self::inorder_traversal_helper(&self.root, &mut result);
+        let mut value_result: Vec<V> = Vec::new();
+        for (_, value) in result {
+            value_result.push(value);
+        }
+        value_result
+    }
+    pub fn inorder_traversal(&self) -> Vec<(K, V)> {
+        let mut result: Vec<(K, V)> = Vec::new();
+        Self::inorder_traversal_helper(&self.root, &mut result);
+        result
+    }
+    
+    fn inorder_traversal_helper(node: &Node<K, V>, result: &mut Vec<(K, V)>) {
+        if let Some(inner) = node {
+            let node = inner.borrow();
+            if node.is_nill {
+                return;
+            }
+            Self::inorder_traversal_helper(&node.left, result);
+            result.push((node.key.clone(), node.val.clone()));
+            Self::inorder_traversal_helper(&node.right, result);
+        }
+    }
+    
+
+
+
 }
 
 impl<K: Key, V: Value> RbNode<K, V> {
@@ -321,6 +381,30 @@ impl<K: Key, V: Value> RbNode<K, V> {
     }
 
     
+    // Formated as: 
+    //   (key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+    pub fn get_debug_info_vec(&self) -> Vec<(K, V, V, V, V, bool, bool)> {
+        let mut parent_value: V = Default::default();
+        if let Some(parent_weak) = &self.parent {
+            if let Some(parent) = parent_weak.upgrade() {
+                parent_value = parent.borrow().val.clone();
+            }
+        }
+
+        let mut left_value: V = Default::default();
+        if let Some(left) = &self.left {
+            left_value = left.borrow().val.clone();
+        }
+
+        let mut right_value: V = Default::default();
+        if let Some(right) = &self.right {
+            right_value = right.borrow().val.clone();
+        }
+
+        vec![(self.key.clone(), self.val.clone(), parent_value, left_value, right_value, self.is_nill, self.is_left_child)]
+    }
+
+    
 }
 
 impl<K: Key, V: Value> fmt::Debug for RbTree<K, V> {
@@ -337,5 +421,459 @@ impl<K: Key, V: Value> fmt::Debug for RbTree<K, V> {
 mod tests {
     use super::*;
 
+    // ==================================
+    // ==       LEFT ROTATION          ==
+    // ==================================
+    #[test]
+    fn test_rotate_left1() {
 
+        // ROTATE LEFT WHERE X IS ROOT
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation left
+        tree.insert(10, 'X');
+        tree.insert(15, 'B');
+        tree.insert(5, 'Y');
+        tree.insert(12, 'C');
+        tree.insert(20, 'A');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_left(x);
+
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let b_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'B', char::default(), 'X', 'A', false, false)];
+        assert_eq!(b_info, vec);
+
+        let x_info = tree.root.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', 'B', 'Y', 'C', false, true)];
+        assert_eq!(x_info, vec);
+
+        let y_info = tree.root.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'Y', 'X', char::default(), char::default(), false, true)];
+        assert_eq!(y_info, vec);
+
+        let c_info = tree.root.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(12, 'C', 'X', char::default(), char::default(), false, false)];
+        assert_eq!(c_info, vec);
+
+        let a_info = tree.root.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(20, 'A', 'B', char::default(), char::default(), false, false)];
+        assert_eq!(a_info, vec);
+
+    }
+
+    #[test]
+    fn test_rotate_left2() {
+        // ROTATE LEFT WHERE X IS NOT ROOT
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation left
+        tree.insert(2, 'U');
+        tree.insert(10, 'X');
+        tree.insert(15, 'B');
+        tree.insert(5, 'Y');
+        tree.insert(12, 'C');
+        tree.insert(20, 'A');
+        tree.insert(3, 'T');
+        tree.insert(7, 'P');
+        tree.insert(11, 'N');
+        tree.insert(13, 'M');
+        tree.insert(17, 'Q');
+        tree.insert(21, 'E');
+
+        // rotate
+        let x = tree.root.as_ref().unwrap().borrow().right.clone();
+        tree.rotate_left(x);
+
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        // lets validate the tree
+
+        let u_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(2, 'U', char::default(), char::default(), 'B', false, false)];
+        assert_eq!(u_info, vec);
+
+        let b_info = tree.root.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'B', 'U', 'X', 'A', false, false)];
+        assert_eq!(b_info, vec);
+
+        let x_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', 'B', 'Y', 'C', false, true)];
+        assert_eq!(x_info, vec);
+
+        let y_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'Y', 'X', 'T', 'P', false, true)];
+        assert_eq!(y_info, vec);
+
+        let c_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(12, 'C', 'X', 'N', 'M', false, false)];
+        assert_eq!(c_info, vec);
+
+        let a_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(20, 'A', 'B', 'Q', 'E', false, false)];
+        assert_eq!(a_info, vec);
+
+        let t_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(3, 'T', 'Y', char::default(), char::default(), false, true)];
+        assert_eq!(t_info, vec);
+
+        let p_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(7, 'P', 'Y', char::default(), char::default(), false, false)];
+        assert_eq!(p_info, vec);
+
+        let n_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(11, 'N', 'C', char::default(), char::default(), false, true)];
+        assert_eq!(n_info, vec);
+
+        let m_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(13, 'M', 'C', char::default(), char::default(), false, false)];
+        assert_eq!(m_info, vec);
+
+        let q_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(17, 'Q', 'A', char::default(), char::default(), false, true)];
+        assert_eq!(q_info, vec);
+
+        let e_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(21, 'E', 'A', char::default(), char::default(), false, false)];
+        assert_eq!(e_info, vec);
+
+    }
+
+    #[test]
+    fn test_rotate_left_3() {
+        // Test if we only have a single node in the tree
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation left
+        tree.insert(10, 'X');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_left(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let x_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', char::default(), char::default(), char::default(), false, false)];
+        assert_eq!(x_info, vec);
+    }
+
+    #[test]
+    fn test_rotate_left_4() {
+        // Test if we only have a single node in the tree and a right node
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation left
+        tree.insert(10, 'X');
+        tree.insert(15, 'B');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_left(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let b_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'B', char::default(), 'X', char::default(), false, false)];
+        assert_eq!(b_info, vec);
+
+        let x_info = tree.root.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', 'B', char::default(), char::default(), false, true)];
+        assert_eq!(x_info, vec);
+
+
+        // test if we only have a single node in the tree and a left node
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation left
+        tree.insert(10, 'X');
+        tree.insert(5, 'B');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_left(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let x2_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', char::default(), 'B', char::default(), false, false)];
+        assert_eq!(x2_info, vec);
+
+        let b2_info = tree.root.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'B', 'X', char::default(), char::default(), false, true)];
+        assert_eq!(b2_info, vec);
+
+        // test if we only have a single node in the tree and a left & right node
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation left
+        tree.insert(10, 'X');
+        tree.insert(5, 'B');
+        tree.insert(15, 'A');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_left(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let a_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'A', char::default(), 'X', char::default(), false, false)];
+        assert_eq!(a_info, vec);
+
+        let x_info = tree.root.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', 'A', 'B', char::default(), false, true)];
+        assert_eq!(x_info, vec);
+
+        let b_info = tree.root.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'B', 'X', char::default(), char::default(), false, true)];
+        assert_eq!(b_info, vec);
+
+    }
+
+
+    // ==================================
+    // ==      Right ROTATION          ==
+    // ==================================
+    #[test]
+    fn test_rotate_right1() {
+        let mut tree: RbTree<i32, char> = RbTree::new();
+
+        //prepare for rotation right
+        tree.insert(15, 'B');
+        tree.insert(10, 'X');
+        tree.insert(20, 'A');
+        tree.insert(5, 'Y');
+        tree.insert(12, 'C');
+
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_right(x);
+
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let x_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', char::default(), 'Y', 'B', false, false)];
+        assert_eq!(x_info, vec);
+
+        let y_info = tree.root.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'Y', 'X', char::default(), char::default(), false, true)];
+        assert_eq!(y_info, vec);
+
+        let b_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'B', 'X', 'C', 'A', false, false)];
+        assert_eq!(b_info, vec);
+
+        let c_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(12, 'C', 'B', char::default(), char::default(), false, true)];
+        assert_eq!(c_info, vec);
+
+        let a_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(20, 'A', 'B', char::default(), char::default(), false, false)];
+        assert_eq!(a_info, vec);
+
+    }
+
+    #[test]
+    fn test_rotate_right2() {
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation right
+        tree.insert(2, 'U');
+        tree.insert(15, 'B');
+        tree.insert(10, 'X');
+        tree.insert(20, 'A');
+        tree.insert(5, 'Y');
+        tree.insert(12, 'C');
+        tree.insert(17, 'Q');
+        tree.insert(21, 'E');
+        tree.insert(3, 'T');
+        tree.insert(7, 'P');
+        tree.insert(11, 'N');
+        tree.insert(13, 'M');
+
+        // rotate
+        let x = tree.root.as_ref().unwrap().borrow().right.clone();
+        tree.rotate_right(x);
+
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        // lets validate the tree
+        let u_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(2, 'U', char::default(), char::default(), 'X', false, false)];
+        assert_eq!(u_info, vec);
+
+        let x_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', 'U', 'Y', 'B', false, false)];
+        assert_eq!(x_info, vec);
+
+        let y_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'Y', 'X', 'T', 'P', false, true)];
+        assert_eq!(y_info, vec);
+
+        let b_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'B', 'X', 'C', 'A', false, false)];
+        assert_eq!(b_info, vec);
+
+        let c_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(12, 'C', 'B', 'N', 'M', false, true)];
+        assert_eq!(c_info, vec);
+
+        let a_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(20, 'A', 'B', 'Q', 'E', false, false)];
+        assert_eq!(a_info, vec);
+
+        let t_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(3, 'T', 'Y', char::default(), char::default(), false, true)];
+        assert_eq!(t_info, vec);
+
+        let p_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(7, 'P', 'Y', char::default(), char::default(), false, false)];
+        assert_eq!(p_info, vec);
+
+        let n_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(11, 'N', 'C', char::default(), char::default(), false, true)];
+        assert_eq!(n_info, vec);
+
+        let m_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow()
+                                                            .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(13, 'M', 'C', char::default(), char::default(), false, false)];
+        assert_eq!(m_info, vec);
+
+        let q_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                            .right.as_ref().unwrap().borrow()
+                                                          .left.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(17, 'Q', 'A', char::default(), char::default(), false, true)];
+        assert_eq!(q_info, vec);
+
+        let e_info = tree.root.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow()
+                                                            .right.as_ref().unwrap().borrow()
+                                                          .right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(21, 'E', 'A', char::default(), char::default(), false, false)];
+        assert_eq!(e_info, vec);
+
+    }
+
+    #[test]
+    fn test_rotate_right3() {
+        // one node
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation right
+        tree.insert(10, 'X');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_right(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let x_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', char::default(), char::default(), char::default(), false, false)];
+        assert_eq!(x_info, vec);
+
+    }
+
+    #[test]
+    fn test_rotate_right4() {
+        //
+        // one node + right node
+        //
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation right
+        tree.insert(10, 'X');
+        tree.insert(15, 'B');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_right(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let x_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', char::default(), char::default(), 'B', false, false)];
+        assert_eq!(x_info, vec);
+
+        let b_info = tree.root.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'B', 'X', char::default(), char::default(), false, false)];
+        assert_eq!(b_info, vec);
+        //
+        // one node + left node
+        //
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation right
+        tree.insert(10, 'X');
+        tree.insert(5, 'B');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_right(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let b_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'B', char::default(), char::default(), 'X', false, false)];
+        assert_eq!(b_info, vec);
+
+        let x_info = tree.root.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', 'B', char::default(), char::default(), false, false)];
+        assert_eq!(x_info, vec);
+
+        // one node + left + right node
+        let mut tree: RbTree<i32, char> = RbTree::new();
+        //prepare for rotation right
+        tree.insert(10, 'X');
+        tree.insert(5, 'B');
+        tree.insert(15, 'A');
+        // rotate
+        let x = tree.root.clone();
+        tree.rotate_right(x);
+        //(key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+        let b_info = tree.root.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(5, 'B', char::default(), char::default(), 'X', false, false)];
+        assert_eq!(b_info, vec);
+
+        let x_info = tree.root.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(10, 'X', 'B', char::default(), 'A', false, false)];
+        assert_eq!(x_info, vec);
+
+        let a_info = tree.root.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().get_debug_info_vec();
+        let vec:Vec<(i32, char, char, char, char, bool, bool)>  = vec![(15, 'A', 'X', char::default(), char::default(), false, false)];
+        assert_eq!(a_info, vec);
+    }
 }
