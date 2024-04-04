@@ -1,3 +1,29 @@
+/***
+ * Red-Black Tree
+ * Self-balancing Binary Search Tree
+ * Properties:
+ * - Every node is either red or black
+ * - Root is black
+ * - Red nodes have black children
+ * - All paths from a node to its descendant null pointers have the same number of black nodes
+ * 
+ * Time Complexity:
+ * - O(log n) for search, insert, delete
+ * - O(n) for traversal
+ * 
+ * Upsides:
+ * - Guaranteed logarithmic time for operations
+ * - Efficient and balanced structure
+ * - Self-balancing property maintains tree balance during insertions and deletions
+ * - Suitable for large datasets with unpredictable distribution
+ * 
+ * Downsides:
+ * - More complex implementation compared to simple binary search trees
+ * - Slightly slower in practice due to additional bookkeeping for maintaining balance
+ * - Requires extra space to meta data for each node such as color, parent, etc.
+ * - May be less cache-friendly than arena allocated implementations
+ */
+
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::option::Option;
