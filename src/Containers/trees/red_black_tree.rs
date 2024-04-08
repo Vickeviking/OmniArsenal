@@ -491,6 +491,9 @@ impl<K: Key, V: Value> RbTree<K, V> {
             // we have two unwrappable children
             x.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x.as_ref().unwrap()));
             x.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x.as_ref().unwrap()));
+            // set their left_child flag
+            x.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().is_left_child = false;
+            x.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().is_left_child = true;
         }
     }
     
@@ -538,13 +541,13 @@ impl<K: Key, V: Value> RbTree<K, V> {
             self.transplant(z.clone(), x.as_ref().unwrap().clone());
         } else if z.borrow().right.is_some() && z.borrow().right.as_ref().unwrap().borrow().is_nill {
             // z has at most one left child
-            self.set_parent_links(z.borrow().left.clone());
             x = z.borrow().left.clone();
+            self.set_parent_links(x.clone());
             self.transplant(z.clone(), x.as_ref().unwrap().clone());
         } else {
             // z has two children
+            
             y = self.succesor(z.borrow().right.clone()).unwrap();
-
             y_original_color = y.borrow().color.clone();
             x = y.borrow().right.clone();
             self.set_parent_links(Some(y.clone()));
@@ -562,6 +565,7 @@ impl<K: Key, V: Value> RbTree<K, V> {
             y.borrow_mut().color = z.borrow().color.clone();
         }
         if y_original_color == Color::BLACK {
+            self.set_parent_links(x.clone());
             self.delete_fixup(x.clone());
         }
     }
@@ -572,69 +576,107 @@ impl<K: Key, V: Value> RbTree<K, V> {
         while x.as_ref().unwrap().borrow().color == Color::BLACK && x.as_ref().unwrap().borrow().key != self.root.as_ref().unwrap().borrow().key {
            if x.as_ref().unwrap().borrow().is_left_child {
                 let mut w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
-                w.as_ref().unwrap().borrow().print_information();
-                if w.as_ref().unwrap().borrow().color == Color::RED {
-                    w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
+                if w.as_ref().unwrap().borrow().is_nill {
+                    // w is nil, no sibling to adjust
+                    println!("X LEFT CHILD, w is nil, no sibling to adjust");
+
+                    // debug w, x
+                    print!("w: ");
+                    w.as_ref().unwrap().borrow().print_information();
+                    print!("x: ");
+                    x.as_ref().unwrap().borrow().print_information();
+
                     let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
                     let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                    self.rotate_left(Some(x_parent_strong.clone()));
-                    w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
-                }
-                if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
-                    w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+
+                    // debug x_parent
+                    print!("x_parent: ");
+                    x_parent_strong.borrow().print_information();
+
                     x = Some(x_parent_strong.clone());
                 } else {
-                    if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
-                        w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                        self.rotate_right(w.clone());
+                    if w.as_ref().unwrap().borrow().color == Color::RED {
+                        w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        self.rotate_left(Some(x_parent_strong.clone()));
                         w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
                     }
-                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                    w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
-                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
-                    w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                    self.rotate_left(Some(x_parent_strong));
-                    x = self.root.clone();
+                    if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
+                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        x = Some(x_parent_strong.clone());
+                    } else {
+                        if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
+                            w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                            w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                            self.rotate_right(w.clone());
+                            w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
+                        }
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
+                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
+                        w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        self.rotate_left(Some(x_parent_strong));
+                        x = self.root.clone();
+                    }
                 }
             } else {
-
                 let mut w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
-                if w.as_ref().unwrap().borrow().color == Color::RED {
-                    w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
+                if w.as_ref().unwrap().borrow().is_nill {
+                    // w is nil, no sibling to adjust
+                    println!("X RIGHT CHILD, w is nil, no sibling to adjust");
+
+                    // debug w, x
+                    print!("w: ");
+                    w.as_ref().unwrap().borrow().print_information();
+                    print!("x: ");
+                    x.as_ref().unwrap().borrow().print_information();
+
                     let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
                     let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                    self.rotate_right(Some(x_parent_strong.clone()));
-                    w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
-                }
-                if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
-                    w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+
+                    // debug x_parent
+                    print!("x_parent: ");
+                    x_parent_strong.borrow().print_information();
+
                     x = Some(x_parent_strong.clone());
                 } else {
-                    if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
-                        w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                        self.rotate_left(w.clone());
+                    if w.as_ref().unwrap().borrow().color == Color::RED {
+                        w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        self.rotate_right(Some(x_parent_strong.clone()));
                         w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
                     }
-                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                    w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
-                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
-                    w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                    self.rotate_right(Some(x_parent_strong));
-                    x = self.root.clone();
+                    if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
+                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        x = Some(x_parent_strong.clone());
+                    } else {
+                        if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
+                            w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                            w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                            self.rotate_left(w.clone());
+                            w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
+                        }
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
+                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
+                        w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                        self.rotate_right(Some(x_parent_strong));
+                        x = self.root.clone();
+                    }
                 }
             }
         }
@@ -1726,4 +1768,64 @@ mod tests {
         }
         
     }
+
+    #[test]
+    fn test_heavy_deletion_test() {
+        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut rng = thread_rng();
+        let mut vec: Vec<i32> = (1..10000).collect();
+        for i in &vec {
+            tree.insert(*i, *i);
+        }
+        for i in vec {
+            let _ = tree.delete(i);
+        }
+        assert!(tree.is_valid_tree());
+
+        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut rng = thread_rng();
+        let mut vec: Vec<i32> = (1..10000).collect();
+        for i in &vec {
+            tree.insert(*i, *i);
+        }
+        for i in 1..vec.len()/3 {
+            let _ = tree.delete(((i*2) + 9) as i32);
+        }
+        assert!(tree.is_valid_tree());
+    }
+
+    #[test]
+    fn test_random_operations() {
+        use rand::seq::SliceRandom;
+        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut rng = rand::thread_rng();
+
+        // Generate a series of random numbers
+        let mut vec: Vec<i32> = (1..10000).collect();
+        vec.shuffle(&mut rng);
+
+        // Insert the numbers into the tree
+        for i in &vec {
+            tree.insert(*i, *i);
+        }
+
+        // Shuffle the numbers again
+        vec.shuffle(&mut rng);
+
+        // Delete the numbers from the tree
+        let mut j = 0; 
+        for i in &vec {
+            let del = tree.delete(*i);
+            j = j + 1;
+            if j % 100 == 0 {
+                println!("Deleted: {}", j);
+            }
+            assert!(del.is_ok());
+        }
+        assert!(tree.is_valid_tree());
+        //TODO: see that tree.size metadata is updated during insertion and deletion 
+        assert!(tree.size == 0);
+    }
+
+
 }
