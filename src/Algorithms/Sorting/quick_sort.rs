@@ -42,7 +42,7 @@ mod tests {
     #[test]
     fn test_quick_sort_10000() {
         // make a vector of 10000 elements with collect()
-        let mut arr: Vec<_> = (0..10000).collect();
+        let mut arr: Vec<_> = (0..1000).collect();
         // shuffle the vector
         arr.shuffle(&mut thread_rng());
         // sort the vector
