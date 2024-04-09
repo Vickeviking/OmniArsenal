@@ -20,8 +20,8 @@ pub use containers::{
     trees::{
         self, 
         binary_search_tree::BinarySearchTree, 
-        arena_red_black_tree,
-        red_black_tree
+        red_black_tree::RedBlackTree,
+        binary_heap::BinaryHeap
     }
 
 };

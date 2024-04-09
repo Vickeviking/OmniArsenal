@@ -28,6 +28,9 @@
  // each key must not be a duplicate of an already existing key, if this becomes a problem 
  // use a HashSet to see if key exists already in O(1) 
 
+ //TODO: Instead of is_left_child flag, add a function
+ // TODO: write tests for the utility public interface functions 
+
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::option::Option;
@@ -62,8 +65,8 @@ impl fmt::Debug for Color {
     }
 }
 
-pub struct RbTree<K: Key, V: Value> {
-    pub sentinel_above_root: NonNullNode<K, V>,
+pub struct RedBlackTree<K: Key, V: Value> {
+    sentinel_above_root: NonNullNode<K, V>,
     pub root: Node<K, V>,
     pub size: usize,
     pub debug: bool
@@ -81,20 +84,21 @@ pub struct RbNode<K: Key, V: Value> {
 }
 
 
-impl<K: Key, V: Value> RbTree<K, V> {
+impl<K: Key, V: Value> RedBlackTree<K, V> {
 
     // new function
-    pub fn new() -> RbTree<K, V> {
+    pub fn new() -> RedBlackTree<K, V> {
         let root: Node<K, V> = Some(RbNode::new_nil());
         let sentinel = RbNode::new_nil();
         root.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&sentinel));
-        RbTree {
+        RedBlackTree {
             sentinel_above_root: sentinel,
             root: root,
-            size: 1,
+            size: 0,
             debug: false
         }
     }
+
 
     // Rotations 
     /* ============== Rotation LEFT =============
@@ -107,7 +111,7 @@ impl<K: Key, V: Value> RbTree<K, V> {
         while the rotation doesnt know why the rotation is happening.
     */// ==========================================
 
-    pub fn rotate_left(&mut self, x: Node<K, V>) -> () {
+    fn rotate_left(&mut self, x: Node<K, V>) -> () {
         if let Some(unwrapped_x) = x {
             
             // make sure x is not a nil node 
@@ -168,7 +172,7 @@ impl<K: Key, V: Value> RbTree<K, V> {
          Does handle is_left_child flag, but not other meta data as color, 
          while the rotation doesnt know why the rotation is happening.
     */// ====================================================
-    pub fn rotate_right(&mut self, x: Node<K, V>) -> () {
+    fn rotate_right(&mut self, x: Node<K, V>) -> () {
         if let Some(unwrapped_x) = x {
             // make sure x is not a nil node 
             if unwrapped_x.borrow().is_nill {
@@ -216,14 +220,18 @@ impl<K: Key, V: Value> RbTree<K, V> {
     }
 
 
-   
+     
+    
+    /*
+    ===================================== 
+    ==  -----------------------------  ==
+    ==      Insertion and Deletion     ==
+    ==  -----------------------------  ==
+    =====================================
+    */
 
-
-
-    // insertion
     pub fn insert(&mut self, key: K, value: V) {
         let z = RbNode::new(key, value.clone());
-
         // if root is nill 
         if self.root.as_ref().unwrap().borrow().is_nill {
             self.root = Some(Rc::clone(&z));
@@ -238,20 +246,18 @@ impl<K: Key, V: Value> RbTree<K, V> {
             z.borrow_mut().right = Some(RbNode::new_nil());
             // establish parent chain from z.right to z
             z.borrow_mut().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&z));
-            self.size += 1;
         } else {
             self.insert_node(Some(z));
         }
-
         if self.debug {
             println!("after inserting {:?}", value.clone());
             println!("{:?}", self);
         }
+        // increment size
+        self.size += 1;
     }
 
     fn insert_node(&mut self, z: Node<K, V>) {
-
-        self.size += 1;
         let mut y = Some(RbNode::<K, V>::new_nil());
         let mut x = self.root.clone();
         while !Rc::clone(&x.as_ref().unwrap()).borrow().is_nill {
@@ -343,8 +349,6 @@ impl<K: Key, V: Value> RbTree<K, V> {
                         self.rotate_right(zpp_strong.clone());
                     }
                 } else {
-
-
                     // we do another thing if it's a right child
                     // if z_parent is root we asign aunt a nil node , else we give it roots left
                     let mut aunt: NonNullNode<K, V> = RbNode::new_nil();
@@ -389,115 +393,6 @@ impl<K: Key, V: Value> RbTree<K, V> {
 
     }
 
-
-
-    // deletion
-
-    // delete helper functions
-     // Utility for deletion
-
-     pub fn swapColors(&mut self, x: Node<K, V>, y: Node<K, V>) {
-        if let (Some(unwr_x), Some(unwr_y)) = (x, y) {
-            let temp = unwr_x.borrow().color.clone();
-            unwr_x.borrow_mut().color = unwr_y.borrow().color.clone();
-            unwr_y.borrow_mut().color = temp;
-        }
-    }
-
-    pub fn swapValues(&mut self, x: Node<K, V>, y: Node<K, V>) {
-        if let (Some(unwr_x), Some(unwr_y)) = (x, y) {
-            // Swap keys
-            let temp_key = unwr_x.borrow().key.clone();
-            unwr_x.borrow_mut().key = unwr_y.borrow().key.clone();
-            unwr_y.borrow_mut().key = temp_key;
-    
-            // Swap values
-            let temp_value = unwr_x.borrow().val.clone();
-            unwr_x.borrow_mut().val = unwr_y.borrow().val.clone();
-            unwr_y.borrow_mut().val = temp_value;
-        }
-    }
-
-    // does not take responsibility for updating v.left or v.right, caller has to 
-    // set u's children into v subtree before calling if they should be kept.
-    fn transplant(&mut self, u: NonNullNode<K, V>, v: NonNullNode<K, V>) {
-        if u.borrow().key == self.root.as_ref().unwrap().borrow().key {
-            self.root = Some(v.clone());
-            // we need to update the root parent to the sentinel
-            self.root.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&self.sentinel_above_root));
-            // sentinel left child is now the root
-            self.sentinel_above_root.borrow_mut().left = self.root.clone();
-        } else if u.borrow().is_left_child {
-            // u will have a parent while u isnt root
-            let u_parent_weak = u.borrow().parent.clone();
-            let u_parent_strong = u_parent_weak.unwrap().upgrade();
-            u_parent_strong.as_ref().unwrap().borrow_mut().left = Some(v.clone()); 
-        } else {
-            let u_parent_weak = u.borrow().parent.clone();
-            let u_parent_strong = u_parent_weak.unwrap().upgrade();
-            u_parent_strong.as_ref().unwrap().borrow_mut().right = Some(v.clone()); 
-        }
-
-        // if u was a left child we need to update v's is_left_child flag
-        v.borrow_mut().is_left_child = u.borrow().is_left_child;
-
-        // if u not root we also want to set v.p = u.p
-        if u.borrow().key != self.root.as_ref().unwrap().borrow().key {
-            v.borrow_mut().parent = u.borrow_mut().parent.take();
-        }
-    }
-
-    pub fn succesor(&self, mut x: Node<K, V>) -> Node<K, V> {
-        if x.is_none() {
-            return None;
-        }
-        while x.as_ref().unwrap().borrow().left.is_some() && !x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill {
-            let new_x = x.as_ref().unwrap().borrow().left.clone();
-            x = new_x;
-        }
-        x
-    }
-
-    pub fn replace(&self, x: Node<K, V>) -> Node<K, V>{
-        //Finds the replacement node in BST for the given node
-        // if x doesnt exist
-        if x.is_none() {
-            return None;
-        }
-        // if x.left is not None and x.right is not None:
-        if x.as_ref().unwrap().borrow().left.is_some() && !x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill 
-           && x.as_ref().unwrap().borrow().right.is_some() && !x.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().is_nill 
-        {
-            return self.succesor(x.as_ref().unwrap().borrow().right.clone());
-        }
-        // if x.left is None and x.right is None:
-        if x.as_ref().unwrap().borrow().left.is_none() || (x.as_ref().unwrap().borrow().left.is_some() && x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill) 
-           && x.as_ref().unwrap().borrow().right.is_none() || (x.as_ref().unwrap().borrow().right.is_some() && x.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().is_nill) 
-        {
-            return Some(x.as_ref().unwrap().borrow().left.as_ref().unwrap().clone());
-        }
-
-        // if x.left is not None:
-        if x.as_ref().unwrap().borrow().left.is_some() && !x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill {
-            return x.as_ref().unwrap().borrow().left.clone();
-        } else {
-            return x.as_ref().unwrap().borrow().right.clone();
-        }
-    }
-
-    fn set_parent_links(&mut self, x: Node<K, V>) {
-        // if x has children we need to update their parent links
-        if x.is_some() && !x.as_ref().unwrap().borrow().is_nill{
-            // we have two unwrappable children
-            x.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x.as_ref().unwrap()));
-            x.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x.as_ref().unwrap()));
-            // set their left_child flag
-            x.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().is_left_child = false;
-            x.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().is_left_child = true;
-        }
-    }
-    
-    
     pub fn delete(&mut self, key: K) -> Result<(K, V), ()> {
         let z: Node<K, V> = self.find_node(key);
         if z.is_none() {
@@ -516,15 +411,12 @@ impl<K: Key, V: Value> RbTree<K, V> {
             self.size -= 1;
             return Ok((found_key, found_val));
         }
-        
-        self.size -= 1;
-
         self.delete_node(z.unwrap());
-
         if self.debug {
             println!("after deleting {:?}", found_val.clone());
             println!("{:?}", self);
         }
+        self.size -= 1;
         return Ok((found_key, found_val));
 
     }
@@ -576,113 +468,119 @@ impl<K: Key, V: Value> RbTree<K, V> {
         while x.as_ref().unwrap().borrow().color == Color::BLACK && x.as_ref().unwrap().borrow().key != self.root.as_ref().unwrap().borrow().key {
            if x.as_ref().unwrap().borrow().is_left_child {
                 let mut w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
-                if w.as_ref().unwrap().borrow().is_nill {
-                    // w is nil, no sibling to adjust
-                    println!("X LEFT CHILD, w is nil, no sibling to adjust");
-
-                    // debug w, x
-                    print!("w: ");
-                    w.as_ref().unwrap().borrow().print_information();
-                    print!("x: ");
-                    x.as_ref().unwrap().borrow().print_information();
-
+                if w.as_ref().unwrap().borrow().color == Color::RED {
+                    w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
                     let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
                     let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-
-                    // debug x_parent
-                    print!("x_parent: ");
-                    x_parent_strong.borrow().print_information();
-
+                    self.rotate_left(Some(x_parent_strong.clone()));
+                    w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
+                }
+                if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
+                    w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
                     x = Some(x_parent_strong.clone());
                 } else {
-                    if w.as_ref().unwrap().borrow().color == Color::RED {
-                        w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        self.rotate_left(Some(x_parent_strong.clone()));
+                    if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
+                        w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                        self.rotate_right(w.clone());
                         w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
                     }
-                    if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
-                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        x = Some(x_parent_strong.clone());
-                    } else {
-                        if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK {
-                            w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                            w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                            self.rotate_right(w.clone());
-                            w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().right.clone();
-                        }
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
-                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
-                        w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        self.rotate_left(Some(x_parent_strong));
-                        x = self.root.clone();
-                    }
+                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                    w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
+                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
+                    w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                    self.rotate_left(Some(x_parent_strong));
+                    x = self.root.clone();    
                 }
             } else {
                 let mut w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
-                if w.as_ref().unwrap().borrow().is_nill {
-                    // w is nil, no sibling to adjust
-                    println!("X RIGHT CHILD, w is nil, no sibling to adjust");
-
-                    // debug w, x
-                    print!("w: ");
-                    w.as_ref().unwrap().borrow().print_information();
-                    print!("x: ");
-                    x.as_ref().unwrap().borrow().print_information();
-
+                if w.as_ref().unwrap().borrow().color == Color::RED {
+                    w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
                     let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
                     let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-
-                    // debug x_parent
-                    print!("x_parent: ");
-                    x_parent_strong.borrow().print_information();
-
+                    self.rotate_right(Some(x_parent_strong.clone()));
+                    w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
+                }
+                if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
+                    w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
                     x = Some(x_parent_strong.clone());
                 } else {
-                    if w.as_ref().unwrap().borrow().color == Color::RED {
-                        w.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::RED;
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        self.rotate_right(Some(x_parent_strong.clone()));
+                    if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
+                        w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
+                        self.rotate_left(w.clone());
                         w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
                     }
-                    if w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().color == Color::BLACK && w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
-                        w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        x = Some(x_parent_strong.clone());
-                    } else {
-                        if w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().color == Color::BLACK {
-                            w.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                            w.as_ref().unwrap().borrow_mut().color = Color::RED;
-                            self.rotate_left(w.clone());
-                            w = x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow().left.clone();
-                        }
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
-                        x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
-                        w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
-                        let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
-                        let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
-                        self.rotate_right(Some(x_parent_strong));
-                        x = self.root.clone();
-                    }
+                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                    w.as_ref().unwrap().borrow_mut().color = x_parent_strong.borrow().color.clone();
+                    x.as_ref().unwrap().borrow().parent.as_ref().unwrap().upgrade().unwrap().borrow_mut().color = Color::BLACK;
+                    w.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow_mut().color = Color::BLACK;
+                    let x_parent_weak = x.as_ref().unwrap().borrow().parent.clone();
+                    let x_parent_strong = x_parent_weak.as_ref().unwrap().upgrade().unwrap();
+                    self.rotate_right(Some(x_parent_strong));
+                    x = self.root.clone();
                 }
             }
         }
         x.as_ref().unwrap().borrow_mut().color = Color::BLACK;
     }
-    // utility
+
+    
+
+    /*
+    ===================================== 
+    ==  -----------------------------  ==
+    ==           Tree Utility          ==
+    ==  -----------------------------  ==
+    =====================================
+    */
+    // Inorder Traversal
+    pub fn inorder_key_traversal(&self) -> Vec<K> {
+        let mut result: Vec<(K,V)> = Vec::new();
+        Self::inorder_traversal_helper(&self.root, &mut result);
+        // extract into vec of keys
+        let mut key_result: Vec<K> = Vec::new();
+        for (key, _) in result {
+            key_result.push(key);
+        }
+        key_result
+    }
+    pub fn inorder_val_traversal(&self) -> Vec<V> {
+        let mut result: Vec<(K, V)> = Vec::new();
+        Self::inorder_traversal_helper(&self.root, &mut result);
+        let mut value_result: Vec<V> = Vec::new();
+        for (_, value) in result {
+            value_result.push(value);
+        }
+        value_result
+    }
+    pub fn inorder_traversal(&self) -> Vec<(K, V)> {
+        let mut result: Vec<(K, V)> = Vec::new();
+        Self::inorder_traversal_helper(&self.root, &mut result);
+        result
+    }
+    
+    fn inorder_traversal_helper(node: &Node<K, V>, result: &mut Vec<(K, V)>) {
+        if let Some(inner) = node {
+            let node = inner.borrow();
+            if node.is_nill {
+                return;
+            }
+            Self::inorder_traversal_helper(&node.left, result);
+            result.push((node.key.clone(), node.val.clone()));
+            Self::inorder_traversal_helper(&node.right, result);
+        }
+    }
 
     pub fn find_node(&mut self, key: K) -> Node<K, V> {
         fn recursive_helper<K: Key, V:Value>(node: Node<K, V>, key: &K) -> Node<K, V> {
@@ -712,80 +610,171 @@ impl<K: Key, V: Value> RbTree<K, V> {
         self.find_node(key).is_some()
     }
 
-    /*
-                    B8
-                   /   \
-                R4     R12
-               /  \   /  \
-              B2  B6 B10  B14
-                        
-     */
-    pub fn get_tree1() -> RbTree<i32, i32> {
-        let mut tree = RbTree::new();
-        tree.insert(2, 2);
-        tree.insert(4, 4);
-        tree.insert(6, 6);
-        tree.insert(8, 8);
-        tree.insert(10, 10);
-        tree.insert(12, 12);
-        tree.insert(14, 14);
-        tree.insert(16, 16);
-        let _ = tree.delete(16);
-        return tree;
+    pub fn insert_vec(&mut self, vec: Vec<(K, V)>) {
+        for (key, value) in vec {
+            self.insert(key, value);
+        }
     }
 
-    /*
-                    B8
-                   /   \
-                B4     B12
-               /  \   /  \
-              B2  B6 B10  R16
-                          / \
-                        B14 R18
-                               \
-                               R20
-     */
-
-    pub fn get_tree2() -> RbTree<i32, i32> {
-        let mut tree = RbTree::new();
-        tree.insert(2, 2);
-        tree.insert(4, 4);
-        tree.insert(6, 6);
-        tree.insert(8, 8);
-        tree.insert(10, 10);
-        tree.insert(12, 12);
-        tree.insert(14, 14);
-        tree.insert(16, 16);
-        tree.insert(18, 18);
-        tree.insert(20, 20);
-        return tree;
+    pub fn delete_vec(&mut self, vec: Vec<K>) {
+        for key in vec {
+            self.delete(key);
+        }
     }
 
-    /*
-                    B14
-                   /   \
-                B10     B18
-                /  \    /  \
-             R6   B12 B16  B20
-            /  \
-          B4    B8
-          /
-         R2
-     */
+    pub fn clear(&mut self) {
+        self.root = Some(RbNode::new_nil());
+        self.root.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&self.sentinel_above_root));
+        self.sentinel_above_root.borrow_mut().left = self.root.clone();
+        self.size = 0;
+    }
+    // Private interface functions 
 
-    pub fn get_tree3() -> RbTree<i32, i32> {
-        let mut tree = RbTree::new();
-        tree.insert(20, 20);
-        tree.insert(18, 18);
-        tree.insert(16, 16);
-        tree.insert(14, 14);
-        tree.insert(12, 12);
-        tree.insert(10, 10);
-        tree.insert(8, 8);
-        tree.insert(6, 6);
-        tree.insert(4, 4);
-        tree.insert(2, 2);
-        return tree;
+    // for deletion
+    fn swapColors(&mut self, x: Node<K, V>, y: Node<K, V>) {
+        if let (Some(unwr_x), Some(unwr_y)) = (x, y) {
+            let temp = unwr_x.borrow().color.clone();
+            unwr_x.borrow_mut().color = unwr_y.borrow().color.clone();
+            unwr_y.borrow_mut().color = temp;
+        }
+    }
+
+    fn swapValues(&mut self, x: Node<K, V>, y: Node<K, V>) {
+        if let (Some(unwr_x), Some(unwr_y)) = (x, y) {
+            // Swap keys
+            let temp_key = unwr_x.borrow().key.clone();
+            unwr_x.borrow_mut().key = unwr_y.borrow().key.clone();
+            unwr_y.borrow_mut().key = temp_key;
+    
+            // Swap values
+            let temp_value = unwr_x.borrow().val.clone();
+            unwr_x.borrow_mut().val = unwr_y.borrow().val.clone();
+            unwr_y.borrow_mut().val = temp_value;
+        }
+    }
+
+    // does not take responsibility for updating v.left or v.right, caller has to 
+    // set u's children into v subtree before calling if they should be kept.
+    fn transplant(&mut self, u: NonNullNode<K, V>, v: NonNullNode<K, V>) {
+        if u.borrow().key == self.root.as_ref().unwrap().borrow().key {
+            self.root = Some(v.clone());
+            // we need to update the root parent to the sentinel
+            self.root.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&self.sentinel_above_root));
+            // sentinel left child is now the root
+            self.sentinel_above_root.borrow_mut().left = self.root.clone();
+        } else if u.borrow().is_left_child {
+            // u will have a parent while u isnt root
+            let u_parent_weak = u.borrow().parent.clone();
+            let u_parent_strong = u_parent_weak.unwrap().upgrade();
+            u_parent_strong.as_ref().unwrap().borrow_mut().left = Some(v.clone()); 
+        } else {
+            let u_parent_weak = u.borrow().parent.clone();
+            let u_parent_strong = u_parent_weak.unwrap().upgrade();
+            u_parent_strong.as_ref().unwrap().borrow_mut().right = Some(v.clone()); 
+        }
+
+        // if u was a left child we need to update v's is_left_child flag
+        v.borrow_mut().is_left_child = u.borrow().is_left_child;
+
+        // if u not root we also want to set v.p = u.p
+        if u.borrow().key != self.root.as_ref().unwrap().borrow().key {
+            v.borrow_mut().parent = u.borrow_mut().parent.take();
+        }
+    }
+
+    fn succesor(&self, mut x: Node<K, V>) -> Node<K, V> {
+        if x.is_none() {
+            return None;
+        }
+        while x.as_ref().unwrap().borrow().left.is_some() && !x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill {
+            let new_x = x.as_ref().unwrap().borrow().left.clone();
+            x = new_x;
+        }
+        x
+    }
+
+    fn replace(&self, x: Node<K, V>) -> Node<K, V>{
+        //Finds the replacement node in BST for the given node
+        // if x doesnt exist
+        if x.is_none() {
+            return None;
+        }
+        // if x.left is not None and x.right is not None:
+        if x.as_ref().unwrap().borrow().left.is_some() && !x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill 
+           && x.as_ref().unwrap().borrow().right.is_some() && !x.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().is_nill 
+        {
+            return self.succesor(x.as_ref().unwrap().borrow().right.clone());
+        }
+        // if x.left is None and x.right is None:
+        if x.as_ref().unwrap().borrow().left.is_none() || (x.as_ref().unwrap().borrow().left.is_some() && x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill) 
+           && x.as_ref().unwrap().borrow().right.is_none() || (x.as_ref().unwrap().borrow().right.is_some() && x.as_ref().unwrap().borrow().right.as_ref().unwrap().borrow().is_nill) 
+        {
+            return Some(x.as_ref().unwrap().borrow().left.as_ref().unwrap().clone());
+        }
+
+        // if x.left is not None:
+        if x.as_ref().unwrap().borrow().left.is_some() && !x.as_ref().unwrap().borrow().left.as_ref().unwrap().borrow().is_nill {
+            return x.as_ref().unwrap().borrow().left.clone();
+        } else {
+            return x.as_ref().unwrap().borrow().right.clone();
+        }
+    }
+
+    fn set_parent_links(&mut self, x: Node<K, V>) {
+        // if x has children we need to update their parent links
+        if x.is_some() && !x.as_ref().unwrap().borrow().is_nill{
+            // we have two unwrappable children
+            x.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x.as_ref().unwrap()));
+            x.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().parent = Some(Rc::downgrade(&x.as_ref().unwrap()));
+            // set their left_child flag
+            x.as_ref().unwrap().borrow_mut().right.as_ref().unwrap().borrow_mut().is_left_child = false;
+            x.as_ref().unwrap().borrow_mut().left.as_ref().unwrap().borrow_mut().is_left_child = true;
+        }
+    }
+    
+    
+    /*
+    ===================================== 
+    ==  -----------------------------  ==
+    ==           Tree  Debug           ==
+    ==  -----------------------------  ==
+    =====================================
+    */
+     // debug if a refcell is being borrowed and if so print if borrowed mut or immutable by trying to borrow
+     fn print_borrow_state(&self, node: Option<&Rc<RefCell<RbNode<K, V>>>>) {
+        match node.as_ref().unwrap().try_borrow_mut() {
+            Ok(_) => println!("not borrowed already"),
+            Err(_) => {
+                match node.as_ref().unwrap().try_borrow()  {
+                    Ok(_) => println!("immutably borrowed"),
+                    Err(_) => println!("mutably borrowed")
+                }
+            }
+        }
+    }
+
+    fn tree_printer_traverse_helper(sb: &mut String, padding: &str, pointer: &str, node: &Option<Rc<RefCell<RbNode<K, V>>>>) {
+        if let Some(inner) = node {
+            let node = inner.borrow();
+            sb.push_str(padding);
+            sb.push_str(pointer);
+            // Check if node is NIL and print NIL, else print value and color
+            if node.is_nill {
+                sb.push_str("(NIL)");
+            } else {
+                sb.push_str(&format!("({:?},{:?})", node.val, node.color));
+            }
+            sb.push('\n');
+    
+            let padding_filler = if pointer == "└── " { "    " } else { "│   " };
+            let padding = format!("{}{}", padding, padding_filler);
+    
+            let pointer_for_right = "└── ";
+            let pointer_for_left = if node.right.is_some() { "├── " } else { "└── " };
+    
+            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_left, &node.left);
+            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_right, &node.right);
+        }
     }
 
     // ######### VALIDATION FUNCTIONS 
@@ -825,7 +814,6 @@ impl<K: Key, V: Value> RbTree<K, V> {
                         }
                     }
                 }
-
                 return curr_is_ok && recursive_helper(unwrapped_node.borrow().left.clone()) && recursive_helper(unwrapped_node.borrow().right.clone())
             }
             return true
@@ -857,99 +845,15 @@ impl<K: Key, V: Value> RbTree<K, V> {
         return result;
     }
 
-    pub fn is_valid_tree(&mut self) -> bool {
+    fn is_valid_tree(&mut self) -> bool {
         return self.validate_rule_2() && self.validate_rule_3() && self.validate_rule_4();
     }
-
-    // debug if a refcell is being borrowed and if so print if borrowed mut or immutable by trying to borrow
-    fn print_borrow_state(&self, node: Option<&Rc<RefCell<RbNode<K, V>>>>) {
-        match node.as_ref().unwrap().try_borrow_mut() {
-            Ok(_) => println!("not borrowed already"),
-            Err(_) => {
-                match node.as_ref().unwrap().try_borrow()  {
-                    Ok(_) => println!("immutably borrowed"),
-                    Err(_) => println!("mutably borrowed")
-                }
-            }
-        }
-    }
-
-
-    // debug 
-    fn tree_printer_traverse_helper(sb: &mut String, padding: &str, pointer: &str, node: &Option<Rc<RefCell<RbNode<K, V>>>>) {
-        if let Some(inner) = node {
-            let node = inner.borrow();
-            sb.push_str(padding);
-            sb.push_str(pointer);
-            // Check if node is NIL and print NIL, else print value and color
-            if node.is_nill {
-                sb.push_str("(NIL)");
-            } else {
-                sb.push_str(&format!("({:?},{:?})", node.val, node.color));
-            }
-            sb.push('\n');
-    
-            let padding_filler = if pointer == "└── " { "    " } else { "│   " };
-            let padding = format!("{}{}", padding, padding_filler);
-    
-            let pointer_for_right = "└── ";
-            let pointer_for_left = if node.right.is_some() { "├── " } else { "└── " };
-    
-            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_left, &node.left);
-            Self::tree_printer_traverse_helper(sb, &padding, pointer_for_right, &node.right);
-        }
-    }
-
-    // ###########     traversals       ################
-
-
-
-    // Inorder Traversal
-    pub fn inorder_key_traversal(&self) -> Vec<K> {
-        let mut result: Vec<(K,V)> = Vec::new();
-        Self::inorder_traversal_helper(&self.root, &mut result);
-        // extract into vec of keys
-        let mut key_result: Vec<K> = Vec::new();
-        for (key, _) in result {
-            key_result.push(key);
-        }
-        key_result
-    }
-    pub fn inorder_val_traversal(&self) -> Vec<V> {
-        let mut result: Vec<(K, V)> = Vec::new();
-        Self::inorder_traversal_helper(&self.root, &mut result);
-        let mut value_result: Vec<V> = Vec::new();
-        for (_, value) in result {
-            value_result.push(value);
-        }
-        value_result
-    }
-    pub fn inorder_traversal(&self) -> Vec<(K, V)> {
-        let mut result: Vec<(K, V)> = Vec::new();
-        Self::inorder_traversal_helper(&self.root, &mut result);
-        result
-    }
-    
-    fn inorder_traversal_helper(node: &Node<K, V>, result: &mut Vec<(K, V)>) {
-        if let Some(inner) = node {
-            let node = inner.borrow();
-            if node.is_nill {
-                return;
-            }
-            Self::inorder_traversal_helper(&node.left, result);
-            result.push((node.key.clone(), node.val.clone()));
-            Self::inorder_traversal_helper(&node.right, result);
-        }
-    }
-    
-
-
 
 }
 
 impl<K: Key, V: Value> RbNode<K, V> {
     // sentinel node 
-    pub fn new_nil() -> NonNullNode<K, V> {
+    fn new_nil() -> NonNullNode<K, V> {
         Rc::new(RefCell::new(RbNode {
             val: Default::default(),
             key: Default::default(),
@@ -962,7 +866,7 @@ impl<K: Key, V: Value> RbNode<K, V> {
         }))
     }
     // node with key and Value 
-    pub fn new(key: K, val: V) -> NonNullNode<K, V> {
+    fn new(key: K, val: V) -> NonNullNode<K, V> {
         Rc::new(RefCell::new(RbNode {
             val: val,
             key: key,
@@ -974,21 +878,15 @@ impl<K: Key, V: Value> RbNode<K, V> {
             is_left_child: false
         }))
     }
-
-    pub fn new_extended(key: K, val: V, color: Color, left: Node<K, V>, right: Node<K, V>, parent: WeakNode<K, V>, is_nill: bool, is_left_child: bool) -> NonNullNode<K, V> {
-        Rc::new(RefCell::new(RbNode {
-            val: val,
-            key: key,
-            color: color,
-            left: left,
-            right: right,
-            parent: parent,
-            is_nill: is_nill,
-            is_left_child: is_left_child
-        }))
-    }
-
-    pub fn get_uncle(&self) -> Node<K,V> {
+    
+    /*
+    ===================================== 
+    ==  -----------------------------  ==
+    ==           Node Utility          ==
+    ==  -----------------------------  ==
+    =====================================
+    */
+    fn get_uncle(&self) -> Node<K,V> {
         if let Some(parent_weak) = &self.parent {
             if let Some(parent) = parent_weak.upgrade() {
                 if let Some(gp_weak) = &parent.borrow().parent {
@@ -1005,7 +903,7 @@ impl<K: Key, V: Value> RbNode<K, V> {
         return None;
     }
 
-    pub fn get_sibling(&self) -> Node<K,V> {
+    fn get_sibling(&self) -> Node<K,V> {
         if let Some(parent_weak) = &self.parent {
             if let Some(parent) = parent_weak.upgrade() {
                 if self.is_left_child {
@@ -1018,7 +916,7 @@ impl<K: Key, V: Value> RbNode<K, V> {
         return None;
     }
 
-    pub fn has_red_child(&self) -> bool {
+    fn has_red_child(&self) -> bool {
         if self.left.is_some() && !self.left.as_ref().unwrap().borrow().is_nill && self.left.as_ref().unwrap().borrow().color == Color::RED {
             return true;
         }
@@ -1028,7 +926,14 @@ impl<K: Key, V: Value> RbNode<K, V> {
         return false;
     }
 
-    pub fn print_information(&self) {
+    /*
+    ===================================== 
+    ==  -----------------------------  ==
+    ==           Node  Debug           ==
+    ==  -----------------------------  ==
+    =====================================
+    */
+    fn print_information(&self) {
         // print information about the node its parent and children
         let mut parent_value: V = Default::default();
         if let Some(parent_weak) = &self.parent {
@@ -1036,49 +941,47 @@ impl<K: Key, V: Value> RbNode<K, V> {
                 parent_value = parent.borrow().val.clone();
             }
         }
-
         let mut left_value: V = Default::default();
         if let Some(left) = &self.left {
             left_value = left.borrow().val.clone();
         }
-
         let mut right_value: V = Default::default();
         if let Some(right) = &self.right {
             right_value = right.borrow().val.clone();
         }
-
         println!("Key: {:?}, Value: {:?}, Color: {:?}, Parent: {:?}, Left: {:?}, Right: {:?}", self.key, self.val, self.color, parent_value, left_value, right_value);
 
     }
 
-    
-    // Formated as: 
-    //   (key, value, parent_value, left_value, right_value, is_nill, is_left_child)
-    pub fn get_debug_info_vec(&self) -> Vec<(K, V, V, V, V, bool, bool)> {
+    // Formated as: (key, value, parent_value, left_value, right_value, is_nill, is_left_child)
+    fn get_debug_info_vec(&self) -> Vec<(K, V, V, V, V, bool, bool)> {
         let mut parent_value: V = Default::default();
         if let Some(parent_weak) = &self.parent {
             if let Some(parent) = parent_weak.upgrade() {
                 parent_value = parent.borrow().val.clone();
             }
         }
-
         let mut left_value: V = Default::default();
         if let Some(left) = &self.left {
             left_value = left.borrow().val.clone();
         }
-
         let mut right_value: V = Default::default();
         if let Some(right) = &self.right {
             right_value = right.borrow().val.clone();
         }
-
         vec![(self.key.clone(), self.val.clone(), parent_value, left_value, right_value, self.is_nill, self.is_left_child)]
     }
 
     
 }
 
-impl<K: Key, V: Value> fmt::Debug for RbTree<K, V> {
+
+/*
+=====================================
+==              Traits             ==
+=====================================
+*/
+impl<K: Key, V: Value> fmt::Debug for RedBlackTree<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut sb = String::new();
         Self::tree_printer_traverse_helper(&mut sb, "", "", &Some(self.sentinel_above_root.clone()));
@@ -1086,20 +989,104 @@ impl<K: Key, V: Value> fmt::Debug for RbTree<K, V> {
     }
 }
 
-// testing area 
+
+
+// =====================================
+// ==           Testing area          ==
+// =====================================
 
 #[cfg(test)]
 mod tests {
     use rand::seq::SliceRandom;
     use rand::thread_rng;
     use super::*;
+
+
+    /*
+                    B8
+                   /   \
+                R4     R12
+               /  \   /  \
+              B2  B6 B10  B14
+                        
+     */
+    pub fn get_tree1() -> RedBlackTree<i32, i32> {
+        let mut tree = RedBlackTree::new();
+        tree.insert(2, 2);
+        tree.insert(4, 4);
+        tree.insert(6, 6);
+        tree.insert(8, 8);
+        tree.insert(10, 10);
+        tree.insert(12, 12);
+        tree.insert(14, 14);
+        tree.insert(16, 16);
+        let _ = tree.delete(16);
+        return tree;
+    }
+
+    /*
+                    B8
+                   /   \
+                B4     B12
+               /  \   /  \
+              B2  B6 B10  R16
+                          / \
+                        B14 R18
+                               \
+                               R20
+     */
+
+    pub fn get_tree2() -> RedBlackTree<i32, i32> {
+        let mut tree = RedBlackTree::new();
+        tree.insert(2, 2);
+        tree.insert(4, 4);
+        tree.insert(6, 6);
+        tree.insert(8, 8);
+        tree.insert(10, 10);
+        tree.insert(12, 12);
+        tree.insert(14, 14);
+        tree.insert(16, 16);
+        tree.insert(18, 18);
+        tree.insert(20, 20);
+        return tree;
+    }
+
+    /*
+                    B14
+                   /   \
+                B10     B18
+                /  \    /  \
+             R6   B12 B16  B20
+            /  \
+          B4    B8
+          /
+         R2
+     */
+
+    pub fn get_tree3() -> RedBlackTree<i32, i32> {
+        let mut tree = RedBlackTree::new();
+        tree.insert(20, 20);
+        tree.insert(18, 18);
+        tree.insert(16, 16);
+        tree.insert(14, 14);
+        tree.insert(12, 12);
+        tree.insert(10, 10);
+        tree.insert(8, 8);
+        tree.insert(6, 6);
+        tree.insert(4, 4);
+        tree.insert(2, 2);
+        return tree;
+    }
+
+
+
     // ==================================
     // ==         Utility              ==
     // ==================================
 
     #[test]
     fn test_find_node(){
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.insert(10, 'A');
         tree.insert(5, 'B');
         tree.insert(15, 'C');
@@ -1110,7 +1097,7 @@ mod tests {
 
     #[test]
     fn test_in_tree(){
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.insert(10, 'A');
         tree.insert(5, 'B');
         tree.insert(15, 'C');
@@ -1125,7 +1112,7 @@ mod tests {
     fn test_insertion_1() {
         // a valid Binary tree insertion, Triangle !
         // no changes should be needed, Testing the early edge cases of insertion 
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true; 
         tree.insert(10, 'A');
         tree.insert(5, 'B');
@@ -1146,7 +1133,7 @@ mod tests {
                 /
                C
          */
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'A');
         tree.insert(5, 'B');
@@ -1161,7 +1148,7 @@ mod tests {
                \
                 C
          */
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'A');
         tree.insert(15, 'B');
@@ -1181,7 +1168,7 @@ mod tests {
                z                      z
          */
         // when zp is a left child
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'G');   //black
         tree.insert(5, 'P');    //red
@@ -1189,7 +1176,7 @@ mod tests {
         tree.insert(2, 'Z');     // red, VIOLATION of property 4 , case 1
         assert!(tree.is_valid_tree());
         // when zp is a right child
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'G');   //black
         tree.insert(5, 'P');    //red
@@ -1217,7 +1204,7 @@ mod tests {
          */
 
         // when zp is a left child
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'G');   //black
         tree.insert(5, 'P');    //black
@@ -1227,7 +1214,7 @@ mod tests {
         assert!(tree.is_valid_tree());
 
         // when zp is a right child
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'G');   //black
         tree.insert(5, 'P');    //black
@@ -1253,7 +1240,7 @@ mod tests {
          */
 
         // when zp is a left child
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'G');   //black
         tree.insert(5, 'P');    //black
@@ -1263,7 +1250,7 @@ mod tests {
         assert!(tree.is_valid_tree());
 
         // when zp is a right child
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'G');   //black
         tree.insert(5, 'P');    //black
@@ -1276,7 +1263,7 @@ mod tests {
     #[test]
     fn test_insertion_6() {
         // big tree insertion test asserting after each insertion
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
 
         let vec: Vec<i32> = (0..1000).collect();
         for i in vec {
@@ -1289,7 +1276,7 @@ mod tests {
     #[test]
     fn test_insertion_7() {
         // big tree insertion test asserting after each insertion
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
 
         let mut vec: Vec<i32> = (0..1000).collect();
         let mut rng = thread_rng();
@@ -1301,11 +1288,12 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "heavy_test")]
     #[test]
     fn test_insertion_8() {
         // super heavy insertion
         // big tree insertion test asserting after each insertion
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
 
         let vec: Vec<i32> = (0..90000).collect();
         for i in vec {
@@ -1324,7 +1312,7 @@ mod tests {
     fn test_transplant() {
         //-------becomes new root
         // Create a RedBlackTree and populate it with some nodes
-        let mut rb_tree = RbTree::new();
+        let mut rb_tree = RedBlackTree::new();
         rb_tree.insert(20, "value20");
         rb_tree.insert(10, "value10");
         rb_tree.insert(30, "value30");
@@ -1340,7 +1328,7 @@ mod tests {
 
         //-------right child
         // Create a RedBlackTree and populate it with some nodes
-        let mut rb_tree = RbTree::new();
+        let mut rb_tree = RedBlackTree::new();
         rb_tree.insert(20, "value20");
         rb_tree.insert(10, "value10");
         rb_tree.insert(30, "value30");
@@ -1358,7 +1346,7 @@ mod tests {
 
         // ------left child
         // Create a RedBlackTree and populate it with some nodes
-        let mut rb_tree = RbTree::new();
+        let mut rb_tree = RedBlackTree::new();
         rb_tree.insert(20, "value20");
         rb_tree.insert(10, "value10");
         rb_tree.insert(30, "value30");
@@ -1379,7 +1367,7 @@ mod tests {
     #[test]
     fn test_tree_minimum() {
         // Create a RedBlackTree and populate it with some nodes
-        let mut rb_tree = RbTree::new();
+        let mut rb_tree = RedBlackTree::new();
         rb_tree.insert(20, "value20");
         rb_tree.insert(10, "value10");
         rb_tree.insert(30, "value30");
@@ -1408,7 +1396,7 @@ mod tests {
      */
     #[test]
     fn test_get_uncle(){
-        let mut rb_tree:RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut rb_tree:RedBlackTree<i32, i32> = get_tree1();
         // 2's uncle is 12
         let z = rb_tree.find_node(2).unwrap();
         let uncle = z.as_ref().borrow().get_uncle();
@@ -1445,7 +1433,7 @@ mod tests {
      */
     #[test]
     fn test_get_sibling(){
-        let mut rb_tree:RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut rb_tree:RedBlackTree<i32, i32> = get_tree1();
 
         // 2's sibling is 6
         let z = rb_tree.find_node(2).unwrap();
@@ -1470,7 +1458,7 @@ mod tests {
 
     #[test]
     fn test_has_red_child() {
-        let mut rb_tree:RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut rb_tree:RedBlackTree<i32, i32> = get_tree1();
         rb_tree.debug = true;
         rb_tree.insert(1, 1);
 
@@ -1483,7 +1471,7 @@ mod tests {
     fn test_deletion_1() {
         // edge case, deleting a node with no children (Only touching red nodes)
         // z is red
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'A');
         tree.insert(5, 'B');
@@ -1492,7 +1480,7 @@ mod tests {
         assert!(tree.is_valid_tree());
 
         // mirrored
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'A');
         tree.insert(5, 'B');
@@ -1501,7 +1489,7 @@ mod tests {
         assert!(tree.is_valid_tree());
 
         // if deleting roots only kid 
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'A');
         tree.insert(15, 'B');
@@ -1509,7 +1497,7 @@ mod tests {
         assert!(tree.is_valid_tree());
 
         // if deleting root 
-        let mut tree: RbTree<i32, char> = RbTree::new();
+        let mut tree: RedBlackTree<i32, char> = RedBlackTree::new();
         tree.debug = true;
         tree.insert(10, 'A');
         let _ = tree.delete(10);
@@ -1531,19 +1519,19 @@ mod tests {
     #[test]
     fn test_deletion_2() {
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         let _ = tree.delete(2);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         let _ = tree.delete(6);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         let _ = tree.delete(10);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         let _ = tree.delete(14);
         assert!(tree.is_valid_tree());
 
@@ -1559,48 +1547,48 @@ mod tests {
             R1                                       R7
         */
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(1, 1);
         let _ = tree.delete(2);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(3, 3);
         let _ = tree.delete(2);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(5, 5);
         let _ = tree.delete(6);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(7, 7);
         let _ = tree.delete(6);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(9, 9);
         let _ = tree.delete(10);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(11, 11);
         let _ = tree.delete(10);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(13, 13);
         let _ = tree.delete(14);
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(16, 16);
         let _ = tree.delete(14);
         assert!(tree.is_valid_tree());
 
         // delete the node with 1 red children while all the other black leafs have one red each 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree1();
+        let mut tree: RedBlackTree<i32, i32> = get_tree1();
         tree.insert(1, 1);
         tree.insert(3, 3);
         tree.insert(5, 5);
@@ -1617,7 +1605,7 @@ mod tests {
     #[test]
     fn test_deletion_2_2() {
         // case 2 , corner case where z is child of root
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
         tree.insert(10, 10);
         tree.insert(5, 5);
         tree.insert(15, 15);
@@ -1658,7 +1646,7 @@ mod tests {
                                \
                                R20
       */
-      let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree2();
+      let mut tree: RedBlackTree<i32, i32> = get_tree2();
       let node = tree.find_node(6).unwrap();
       node.as_ref().borrow().left.as_ref().unwrap().borrow().print_information();
       println!("{:?}", tree);
@@ -1678,7 +1666,7 @@ mod tests {
          R2
     //  */
 
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree3();
+        let mut tree: RedBlackTree<i32, i32> = get_tree3();
         let _ = tree.delete(18);
         assert!(tree.is_valid_tree());
 
@@ -1687,7 +1675,7 @@ mod tests {
 
     #[test]
     fn test_deletion_4() {
-        let mut tree: RbTree<i32, i32> = RbTree::<i32, i32>::get_tree3();
+        let mut tree: RedBlackTree<i32, i32> = get_tree3();
         let _ = tree.delete(6);
         assert!(tree.is_valid_tree());
         let _ = tree.delete(8);
@@ -1706,7 +1694,7 @@ mod tests {
 
     #[test]
     fn test_deletion_5() {
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
         let vec: Vec<i32> = (1..10).collect();
         for i in vec {
             tree.insert(i, i);
@@ -1731,7 +1719,7 @@ mod tests {
         assert!(tree.is_valid_tree());
         println!("{:?}", tree);
 
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
         let vec: Vec<i32> = (1..10).collect();
         for i in vec {
             tree.insert(i, i);
@@ -1755,23 +1743,13 @@ mod tests {
         let _ = tree.delete(1);
         assert!(tree.is_valid_tree());
         println!("{:?}", tree);
-
-        // load the tree again with 50 elements
-        let mut tree: RbTree<i32, i32> = RbTree::new();
-        let vec: Vec<i32> = (1..5550).collect();
-        for i in &vec {
-            tree.insert(*i, *i);
-        }
-        for i in vec {
-            let _ = tree.delete(i);
-            assert!(tree.is_valid_tree());
-        }
         
     }
 
+    #[cfg(feature = "heavy_test")]
     #[test]
     fn test_heavy_deletion_test() {
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
         let mut rng = thread_rng();
         let mut vec: Vec<i32> = (1..10000).collect();
         for i in &vec {
@@ -1782,7 +1760,7 @@ mod tests {
         }
         assert!(tree.is_valid_tree());
 
-        let mut tree: RbTree<i32, i32> = RbTree::new();
+        let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
         let mut rng = thread_rng();
         let mut vec: Vec<i32> = (1..10000).collect();
         for i in &vec {
@@ -1794,38 +1772,34 @@ mod tests {
         assert!(tree.is_valid_tree());
     }
 
+    #[cfg(feature = "heavy_test")]
     #[test]
     fn test_random_operations() {
         use rand::seq::SliceRandom;
-        let mut tree: RbTree<i32, i32> = RbTree::new();
-        let mut rng = rand::thread_rng();
 
-        // Generate a series of random numbers
-        let mut vec: Vec<i32> = (1..10000).collect();
-        vec.shuffle(&mut rng);
+        for _ in 0..3 {
+            let mut tree: RedBlackTree<i32, i32> = RedBlackTree::new();
+            let mut rng = rand::thread_rng();
 
-        // Insert the numbers into the tree
-        for i in &vec {
-            tree.insert(*i, *i);
-        }
+            // Generate a series of random numbers
+            let mut vec: Vec<i32> = (1..10000).collect();
+            vec.shuffle(&mut rng);
 
-        // Shuffle the numbers again
-        vec.shuffle(&mut rng);
-
-        // Delete the numbers from the tree
-        let mut j = 0; 
-        for i in &vec {
-            let del = tree.delete(*i);
-            j = j + 1;
-            if j % 100 == 0 {
-                println!("Deleted: {}", j);
+            // Insert the numbers into the tree
+            for i in &vec {
+                tree.insert(*i, *i);
             }
-            assert!(del.is_ok());
+            // Shuffle the numbers again
+            vec.shuffle(&mut rng);
+
+            // Delete the numbers from the tree
+            for i in &vec {
+                let del = tree.delete(*i);
+                assert!(del.is_ok());
+            }
+            assert!(tree.is_valid_tree());
+            // prinnt out tree size
+            assert!(tree.size == 0);
         }
-        assert!(tree.is_valid_tree());
-        //TODO: see that tree.size metadata is updated during insertion and deletion 
-        assert!(tree.size == 0);
     }
-
-
 }

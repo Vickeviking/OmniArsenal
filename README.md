@@ -1,10 +1,15 @@
 # OmniArsenal
 
+## Testing
+to test my heavier tests run 
+$ cargo test --features "heavy_test"  // takes a few minutes
+$ cargo test //well tought out but quicker tests only, takes halv a second 
 
 ## Containers 
  ### Trees
     -RedBlackTree
     -BinaryTree
+    -BinaryHeap (Arena allocated)
  ### List
     -ArrayList
     -SinglyLinkedList

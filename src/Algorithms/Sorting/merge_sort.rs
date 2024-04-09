@@ -62,7 +62,23 @@ mod tests {
         assert_eq!(arr, [1, 2, 3, 4, 5]);
     }
 
+    // test 300 elements
+    #[test]
+    fn test_merge_sort_300() {
+        // make a vector of 300 elements with collect()
+        let mut arr: Vec<_> = (0..300).collect();
+        // shuffle the vector
+        arr.shuffle(&mut thread_rng());
+        // sort the vector
+        mergesort(&mut arr);
+        // assert that the vector is sorted
+        for i in 0..arr.len() - 1 {
+            assert!(arr[i] <= arr[i + 1]);
+        }
+    }
+
     // test 10000 elements
+    #[cfg(feature = "heavy_test")]
     #[test]
     fn test_quick_sort_10000() {
         // make a vector of 10000 elements with collect()
